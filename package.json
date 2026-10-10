@@ -1,0 +1,21 @@
+{
+  "name": "obsidian-wallos",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Mobile-friendly Wallos subscription companion for Obsidian",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.9",
+    "obsidian": "^1.11.4",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "wallos-companion",
+  "name": "Wallos Companion",
+  "version": "0.2.0",
+  "minAppVersion": "1.11.4",
+  "description": "Manage Wallos subscriptions from a mobile-friendly Obsidian view. Wallos remains the source of truth for renewals and notifications.",
+  "author": "Pycnocline",
+  "authorUrl": "https://github.com/Pycnocline",
+  "isDesktopOnly": false
+}
