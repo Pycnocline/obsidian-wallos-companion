@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $nonce = (string) ($_POST['csrf'] ?? '');
         $userId = (int) ($_SESSION['userId'] ?? 0);
         if ($userId <= 0 || ($_SESSION['loggedin'] ?? false) !== true) { http_response_code(401); exit('请先登录 Wallos'); }
-        if (!validId($id) || !hash_equals((string) ($_SESSION['wallos_pair_csrf'] ?? ''), $nonce)) { http_response_code(403); exit('授权校验失败'); }
+        if (!validId($id) || !preg_match('/^[a-f0-9]{48}$/D', $nonce) || !isset($_SESSION['wallos_pair_csrf'], $_SESSION['wallos_pair_id']) || !hash_equals((string) $_SESSION['wallos_pair_csrf'], $nonce) || !hash_equals((string) $_SESSION['wallos_pair_id'], $id)) { http_response_code(403); exit('授权校验失败'); }
         $stmt = $pairDb->prepare('UPDATE pairs SET approved_user = :user WHERE id = :id AND expires_at >= :now AND approved_user IS NULL');
         $stmt->bindValue(':id', $id, SQLITE3_TEXT);
         $stmt->bindValue(':user', $userId, SQLITE3_INTEGER);
@@ -94,6 +94,7 @@ if (($_SESSION['loggedin'] ?? false) !== true || !isset($_SESSION['userId'])) {
 }
 $csrf = bin2hex(random_bytes(24));
 $_SESSION['wallos_pair_csrf'] = $csrf;
+$_SESSION['wallos_pair_id'] = $id;
 header('Content-Type: text/html; charset=utf-8');
 echo '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>授权 Obsidian</title>';
 echo '<h2>授权 Wallos Companion</h2><p>允许此设备通过 API Key 管理当前 Wallos 账户的订阅，包括新增、修改和删除。</p>';
