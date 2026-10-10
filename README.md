@@ -1,69 +1,52 @@
 # Wallos Companion for Obsidian
 
-一个面向桌面和 iOS/Android Obsidian 的 Wallos 订阅管理插件（独立于 Wallos 官方项目）。
-
-> 开发版 0.1.0。Wallos 依然是订阅唯一事实来源，服务端继续负责续费和提醒。插件不会将订阅数据写入 Vault，也**不会**在 Obsidian 关闭时运行通知任务。
+Wallos v5.8.1 订阅管理 Obsidian 插件，支持桌面与 iOS/Android。当前开发版本 **0.2.0**。
 
 ## 功能
 
-- 查看实时订阅列表，支持搜索、按即将续费/活跃/停用筛选。
-- 使用 Wallos 官方 `get_monthly_cost.php` 显示当月费用（不自行混算多币种）。
-- 查看续费时间、周期、支付方式、分类和提醒是否启用。
-- 新增、编辑、删除订阅；操作直接通过 Wallos v5.8.1 `set_subscriptions.php`。
-- 可切换自动续订、启用服务端到期通知和通知提前天数。
-- 响应式移动端卡片/表单、44px 触控按钮、手机日期输入、深浅主题配色。
-- 密钥使用 Obsidian 1.11.4+ 的 SecretStorage；无 API Key 明文配置文件或 URL 查询参数。
-- 可选 Cloudflare Access Service Token 头，与 Wallos API Key 分开认证。
+- 阅读月度费用、订阅列表、到期提醒与分类；新增、编辑、删除订阅
+- 响应式窄屏触控界面；Wallos 是唯一的数据来源，服务器负责持续通知
+- **网页统一登录**：在 Obsidian 启动登录 → 浏览器完成 Someday SSO / Cloudflare 登录 → 回到 Obsidian 点击“授权此设备” → 浏览器确认 → 回到 Obsidian 点击“完成连接”
+- 登录密钥存放在 Obsidian SecretStorage，不会写入 Vault 的 data.json
+- 可在设置中退出插件；已有 API Key / Cloudflare Access Service Token 仍可作为高级备用配置
 
-## 安装（开发版）
+## 重要：一键登录需要服务端配对接口
 
-在装有 Obsidian **1.11.4 或更高版本**的设备上：
+**仅安装 Obsidian 插件不能启用一键登录。** 需要把仓库 `server/obsidian-pair.php` 挂载到 Wallos Web 根目录的 `/var/www/html/obsidian-pair.php`。该文件与当前 Wallos 部署的 `/login.php`、`/sso.php` 配合使用，且需要 Wallos 用户已有 API Key。不要覆盖现有登录补丁。
 
-1. 执行 `npm ci && npm run build`。也可以使用仓库 Release 附带的 `main.js`、`manifest.json` 和 `styles.css`。
-2. 将 **这三个文件**放入 Vault 的 `.obsidian/plugins/wallos-companion/`。
-3. Obsidian → 设置 → 第三方插件 → 启用 **Wallos Companion**。
-4. 在插件设置填写 Wallos 基础地址（示例 `https://wallos.iamin.icu`）。
-5. 在 Wallos 的个人设置生成 API Key；在 Obsidian SecretStorage 中新建密钥，然后在插件的「Wallos API Key」下拉框选择它。
-6. 如果 Wallos API 被 Cloudflare Access 保护，在 Cloudflare 创建允许 Service Token 的相应访问策略，并分别设置 `Client ID` 和 `Client Secret`。不要求也不建议关闭 Access 保护。
-7. 通过左侧钱包图标或命令面板打开订阅面板。
+配对接口必须：
+1. 与 Wallos 同源，通过 HTTPS 访问，不允许绕过 Cloudflare 已存在的保护策略
+2. 使用现有 Wallos 会话进行网页授权
+3. 使用独立、有效期 180 秒的配对状态和 256 位随机验证器
+4. 通过 HTTPS POST 将已有 API Key 交回请求发起设备，领取后删除状态
 
-**iOS/Android 注意：** Obsidian 的 SecretStorage 属于每台设备的本地密钥存储，不会依赖 LiveSync 自动将密钥迁移到新设备。新设备需重新导入/创建密钥。Wallos API 地址必须从手机网络可达；仅在服务器本机可访问的 `127.0.0.1` 无法跨设备使用。
+本仓库提供接口代码，但**尚未部署或验证到生产 Wallos**。需要检查容器 `db` 目录对 PHP 的写权限及配对 SQLite 文件不能通过 HTTP 下载，并配置持久化挂载。服务端代码还需完成真实环境安全审查和端到端测试后才能开启公开使用。
 
-**Access 说明：** Cloudflare Access 的网页登录 Cookie/OIDC 与 API Key 是两个独立的认证环节。插件会用表单 POST 发送 Wallos API Key；如配置 Service Token，还将额外发送 `CF-Access-Client-Id` / `CF-Access-Client-Secret` 请求头。Access 应对该 Token 配置授权策略，而不是为解决插件访问直接开放无鉴权接口。若前端收到 Access 的 HTML 登录页面，插件会提示对应错误。
+## 安装开发版
 
-**提醒说明：** 需要在 Wallos 服务端配置通知渠道（例如 ntfy），插件中勾选「启用 Wallos 到期提醒」只是启用当前订阅的服务端提醒标记，不代表 ntfy 自动完成配置。
+将 `main.js`、`manifest.json`、`styles.css` 放入 Vault 的 `.obsidian/plugins/wallos-companion/`，然后在 Obsidian 设置 → 第三方插件启用。
 
-## 测试
+要求 Obsidian 1.11.4+。移动设备上的 SecretStorage 独立于 Vault，需要分别完成登录。
+
+## 开发 / 验证
 
 ```sh
 npm ci
 npm run check
 ```
 
-已实现的测试覆盖日期与夏令时安全计算、周期映射、筛选、表单字段、POST API Key 传输、编辑/删除操作、Cloudflare Access HTTP/HTML 错误和部分元数据接口异常。
+目前通过 TypeScript 静态检查、12 项单元测试、esbuild 生产构建；**尚未完成真实 Wallos 登录和手机实机测试**。
 
-尚需在真实用户 Wallos 环境与 iPhone/Android Obsidian 中进行联调；不要把单元测试等同于真实移动端测试。
+## 目录
 
-## 安全与限制
-
-- 插件不存本地订阅数据库，不把账号和费用写入任何 Markdown。
-- 所有 API 请求通过 Obsidian `requestUrl`，避免 WebView CORS 限制；API Key 只随 HTTPS 表单体发送，不放 URL。
-- 直接 POST Wallos 官方接口，未引入额外的服务器、WebSocket、数据库或代理。
-- 此版本不包含 PennyWallet 自动记账：Wallos 预计续费日期不等于真实支付成功，自动入账会导致虚假账目。后续可通过 PennyWallet URI 实现用户确认的手动入账。
-- Wallos 的 `get_monthly_cost` 显示当月费用；没有可用汇率时请检查 Wallos 原生的币种与汇率设置。
-- 此版本未在公开的 Obsidian 插件商店上架。BRAT 安装需公开仓库或 Release，仓库创建后再处理。
-
-## 项目结构
-
-- `src/api.ts`：Wallos 5.8.1 HTTP 接口适配
-- `src/model.ts`：日期、周期、搜索、数据校验
-- `src/view.ts`：响应式订阅面板
-- `src/modals.ts`：新增、编辑、删除确认
-- `src/settings.ts`：SecretStorage 和 Access 设置
-- `src/main.ts`：Obsidian 插件生命周期与命令
-- `styles.css`：移动端和桌面端视觉样式
-- `tests/`：API 和业务规则的单元测试
+- `src/api.ts`：Wallos 官方订阅 API
+- `src/pairing.ts`：配对客户端
+- `src/main.ts`：登录动作、SecretStorage、插件入口
+- `src/settings.ts`：登录及连接设置
+- `src/view.ts`：订阅面板
+- `server/obsidian-pair.php`：可选的 Wallos 登录桥接
+- `tests/`：单元测试
 
 ## License
 
-MIT。Wallos 是独立的 GPL-3.0 项目，本插件通过公开 API 互操作，不包含 Wallos PHP 源码。
+MIT。Wallos 为独立的 GPL-3.0 项目。
