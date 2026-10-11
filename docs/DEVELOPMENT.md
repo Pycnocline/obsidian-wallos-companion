@@ -20,3 +20,10 @@
 ## 数据处理
 
 仅 data.json 保存非敏感设置与 SecretStorage 引用 ID。API Key 保留在设备本地 SecretStorage。订阅、分类、预算等仅用于会话内存显示，不写入笔记仓库。server/obsidian-pair.php 是用户独立部署的桥接，不能把生产 SQLite 与密钥提交到仓库。
+
+## 工作区及响应式兼容性
+
+- src/workspace.ts 负责创建独立右侧叶子，并将首次 API 读取延后到 workspace.onLayoutReady + requestIdleCallback。旧设备无 requestIdleCallback 时退化为可取消的短延时。
+- tests/workspace.test.ts 模拟已有 Notebook Navigator 视图，保证其 setViewState 不会被 Wallos 调用；还覆盖关闭视图、移动端、新旧调度器。
+- tests/style-isolation.test.ts 验证 CSS 未重写文件树/工作区全局选择器；styles.css 使用 @container wallos-pane 使响应式以插件面板宽度而非桌面窗口宽度判断。
+- Chromium 测试夹具使用无生产数据的模拟订阅；已经在 345 px 侧栏和 880 px 宽视图中检查列数、横向溢出与标签换行。此类夹具不构成真实 Obsidian + Notebook Navigator 同时运行的实机验收。

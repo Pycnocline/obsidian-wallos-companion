@@ -1,6 +1,6 @@
 {
   "name": "obsidian-wallos",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Mobile-first Wallos subscriptions, calendar, budgets, categories, payments and statistics in Obsidian",
   "type": "module",

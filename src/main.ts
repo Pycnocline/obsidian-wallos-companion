@@ -4,6 +4,7 @@ import { PairingClient, randomVerifier } from './pairing';
 import { safeHttpsUrl } from './model';
 import { DEFAULT_SETTINGS, WallosPluginSettings, WallosSettingTab } from './settings';
 import { VIEW_TYPE_WALLOS, WallosView } from './view';
+import { revealWallosLeaf } from './workspace';
 
 export default class WallosCompanionPlugin extends Plugin {
   settings: WallosPluginSettings = { ...DEFAULT_SETTINGS };
@@ -14,6 +15,9 @@ export default class WallosCompanionPlugin extends Plugin {
   async onload(): Promise<void> {
     const saved = await this.loadData() as Partial<WallosPluginSettings> | null;
     this.settings = { ...DEFAULT_SETTINGS, ...saved };
+    // Do not trigger a background API refresh just 30 seconds after startup:
+    // honor the configured refresh cadence from initial plugin load.
+    this.nextRefreshAt = Date.now() + Math.max(0, this.settings.refreshMinutes) * 60_000;
     this.api = new WallosApi(() => ({
       baseUrl: this.settings.baseUrl,
       apiKey: this.getSecret(this.settings.apiKeySecretId),
@@ -121,12 +125,7 @@ export default class WallosCompanionPlugin extends Plugin {
 
   async activateView(): Promise<void> {
     try {
-      const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_WALLOS)[0];
-      const leaf = existing || (Platform.isMobile
-        ? this.app.workspace.getLeaf(true)
-        : this.app.workspace.getRightLeaf(false) || this.app.workspace.getLeaf(true));
-      if (!existing) await leaf.setViewState({ type: VIEW_TYPE_WALLOS, active: true });
-      await this.app.workspace.revealLeaf(leaf);
+      await revealWallosLeaf(this.app.workspace, VIEW_TYPE_WALLOS, Platform.isMobile);
     } catch {
       new Notice('无法打开 Wallos 面板，请检查 Obsidian 版本或插件状态');
     }

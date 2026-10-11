@@ -1,5 +1,6 @@
 import { ItemView, Notice, Platform, setIcon, WorkspaceLeaf } from 'obsidian';
 import type WallosCompanionPlugin from './main';
+import { scheduleRefreshAfterLayout } from './workspace';
 import { DeleteConfirmationModal, SubscriptionModal } from './modals';
 import { FinanceSettingsModal, ResourceManagerModal } from './management';
 import type { AdvancedFilters, CalendarOccurrence, DashboardData, MonthlyCost, Subscription, ViewFilter } from './model';
@@ -26,7 +27,9 @@ function actionButton(parent: HTMLElement, icon: string, title: string, onClick:
 }
 function choose(parent: HTMLElement, label: string, values: {id: string; name: string}[], selected: string,
   changed: (value: string) => void): HTMLSelectElement {
-  const select = parent.createEl('select', { cls: 'wallos-input wallos-filter-select', attr: { 'aria-label': label, title: label } });
+  const field = parent.createEl('label', { cls: 'wallos-filter-field' });
+  field.createSpan({ cls: 'wallos-filter-caption', text: label });
+  const select = field.createEl('select', { cls: 'wallos-input wallos-filter-select', attr: { 'aria-label': label, title: label } });
   for (const {id, name} of values) {
     const opt = select.createEl('option', { text: name }); opt.value = id;
   }
@@ -60,14 +63,32 @@ export class WallosView extends ItemView {
   private trend: { month: string; cost: MonthlyCost }[] | null = null;
   private trendError: string | null = null;
   private trendLoading = false;
+  private isClosed = true;
+  private cancelInitialRefresh: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: WallosCompanionPlugin) { super(leaf); }
   getViewType(): string { return VIEW_TYPE_WALLOS; }
   getDisplayText(): string { return 'Wallos 订阅'; }
   getIcon(): string { return 'wallet-cards'; }
 
-  async onOpen(): Promise<void> { this.render(); await this.refresh(); }
-  async onClose(): Promise<void> { this.requestGeneration++; this.listContainer = null; }
+  async onOpen(): Promise<void> {
+    this.isClosed = false;
+    this.render();
+    // An Obsidian layout restore can open Wallos while Notebook Navigator is
+    // still rebuilding its index. Avoid competing with initial workspace setup.
+    this.cancelInitialRefresh = scheduleRefreshAfterLayout(this.app.workspace, () => {
+      if (!this.isClosed && this.plugin.isConnected() && !this.lastSynced && !this.loading) {
+        void this.refresh();
+      }
+    });
+  }
+  async onClose(): Promise<void> {
+    this.isClosed = true;
+    this.cancelInitialRefresh?.();
+    this.cancelInitialRefresh = null;
+    this.requestGeneration++;
+    this.listContainer = null;
+  }
 
   async refresh(): Promise<void> {
     if (this.loading) return;
@@ -136,9 +157,11 @@ export class WallosView extends ItemView {
     container.addClass('wallos-root');
     const surface = container.createDiv({ cls: 'wallos-surface' });
     const header = surface.createDiv({ cls: 'wallos-header' });
-    const title = header.createDiv({ cls: 'wallos-header-name' });
-    title.createEl('h2', { text: 'Wallos Companion' });
-    title.createEl('p', { text: '订阅与续费 · Wallos 服务端实时数据' });
+    const brand = header.createDiv({ cls: 'wallos-brand' });
+    setIcon(brand.createSpan({ cls: 'wallos-brand-mark' }), 'wallet-cards');
+    const title = brand.createDiv({ cls: 'wallos-header-name' });
+    title.createEl('h2', { text: 'Wallos' });
+    title.createEl('p', { text: 'Companion · 订阅管理' });
     const actions = header.createDiv({ cls: 'wallos-header-actions' });
     const refreshButton = iconButton(actions, 'refresh-cw', '刷新数据', () => { void this.refresh(); });
     refreshButton.disabled = this.loading;
@@ -151,8 +174,15 @@ export class WallosView extends ItemView {
       box.createSpan({ text: this.data ? '刷新失败，显示上次获取的内容：' + this.refreshError : this.refreshError });
     }
     if (!this.data) {
-      if (this.loading) surface.createEl('p', { cls: 'wallos-empty', text: '正在读取 Wallos 数据…' });
-      else {
+      if (this.loading || (this.plugin.isConnected() && !this.refreshError)) {
+        surface.createEl('p', { cls: 'wallos-empty', text: this.loading ?
+          '正在读取 Wallos 数据…' : '等待工作区就绪，随后同步 Wallos 数据…' });
+      } else if (this.plugin.isConnected()) {
+        const empty = surface.createDiv({ cls: 'wallos-empty' });
+        empty.createEl('h3', { text: '暂时无法读取订阅' });
+        empty.createEl('p', { text: '连接信息已保留，可稍后重试。' });
+        actionButton(empty, 'refresh-cw', '重新读取', () => { void this.refresh(); });
+      } else {
         const empty = surface.createDiv({ cls: 'wallos-empty' });
         empty.createEl('h3', { text: '连接 Wallos' });
         empty.createEl('p', { text: '在设置中完成 Someday SSO 设备授权，或者指定已有 API Key。' });
@@ -161,8 +191,10 @@ export class WallosView extends ItemView {
       return;
     }
 
-    surface.createDiv({ cls: 'wallos-sync-line', text: this.lastSynced ?
-      '上次更新 ' + this.lastSynced.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) + (this.loading ? ' · 刷新中' : '') : '尚未更新' });
+    const syncLine = surface.createDiv({ cls: 'wallos-sync-line' });
+    syncLine.createSpan({ cls: 'wallos-sync-dot' + (this.refreshError ? ' has-error' : '') });
+    syncLine.createSpan({ text: this.lastSynced ?
+      '已同步 · ' + this.lastSynced.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) + (this.loading ? ' · 更新中' : '') : '等待首次同步' });
     if (this.data.metadataWarnings.length) {
       const warning = surface.createDiv({ cls: 'wallos-alert wallos-warning' });
       setIcon(warning.createSpan(), 'info');
@@ -182,10 +214,11 @@ export class WallosView extends ItemView {
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(id === this.panel));
     });
-    if (this.panel === 'subscriptions') this.renderSubscriptionsPanel(surface);
-    if (this.panel === 'calendar') this.renderCalendarPanel(surface);
-    if (this.panel === 'statistics') this.renderStatisticsPanel(surface);
-    if (this.panel === 'manage') this.renderManagementPanel(surface);
+    const page = surface.createDiv({ cls: 'wallos-page', attr: { role: 'tabpanel' } });
+    if (this.panel === 'subscriptions') this.renderSubscriptionsPanel(page);
+    if (this.panel === 'calendar') this.renderCalendarPanel(page);
+    if (this.panel === 'statistics') this.renderStatisticsPanel(page);
+    if (this.panel === 'manage') this.renderManagementPanel(page);
     surface.createEl('p', { cls: 'wallos-footnote', text: 'Wallos 仍负责订阅记录、汇率和通知。本插件不会把订阅数据写进笔记仓库。' });
   }
   private openPluginSettings(): void {
@@ -202,21 +235,33 @@ export class WallosView extends ItemView {
     const active = data.subscriptions.filter(s => Number(s.inactive) !== 1);
     const due7 = active.filter(s => { const days = dayDifference(s.next_payment); return days !== null && days >= 0 && days <= 7; }).length;
     const averages = averageMonthlyCost(active, data.currencies, data.mainCurrencyId, this.canConvert());
+    const summaryHeader = surface.createDiv({ cls: 'wallos-summary-heading' });
+    summaryHeader.createSpan({ text: '财务概览', cls: 'wallos-section-kicker' });
+    summaryHeader.createSpan({
+      text: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' }),
+      cls: 'wallos-summary-period',
+    });
     const metric = surface.createDiv({ cls: 'wallos-metrics wallos-metrics-wide' });
-    this.metric(metric, '本月预计支出', data.monthly?.localized_monthly_cost || '—', 'Wallos 日历月合计');
     const avgLabel = averages.convertedTotal === null ? averages.byCurrency.map(c => money(c.amount, c.code)).join(' / ') : money(averages.convertedTotal, averages.convertedCode || '—');
-    this.metric(metric, '平均每月成本', avgLabel || '—', averages.byCurrency.length > 1 ? (averages.convertedTotal !== null ? '按 Wallos 汇率估算' : '币种独立列示') : '按订阅周期分摊');
-    this.metric(metric, '活跃订阅', String(active.length), '项');
-    this.metric(metric, '未来 7 天续费', String(due7), '项');
+    this.metric(metric, '平均每月成本', avgLabel || '—',
+      averages.byCurrency.length > 1 ? (averages.convertedTotal !== null ? '按 Wallos 汇率估算' : '多币种分别计算') : '已按订阅周期分摊', 'wallet');
+    this.metric(metric, '本月预计支出', data.monthly?.localized_monthly_cost || '—', '计划续费金额', 'calendar-days');
+    this.metric(metric, '活跃订阅', String(active.length), '正在使用的服务', 'layers');
+    this.metric(metric, '未来 7 天续费', String(due7), '近期付款项目', 'clock-3');
   }
-  private metric(container: HTMLElement, label: string, value: string, desc: string): void {
+  private metric(container: HTMLElement, label: string, value: string, desc: string, icon?: string): void {
     const card = container.createDiv({ cls: 'wallos-metric' });
-    card.createDiv({ cls: 'wallos-metric-label', text: label });
+    const heading = card.createDiv({ cls: 'wallos-metric-heading' });
+    heading.createSpan({ cls: 'wallos-metric-label', text: label });
+    if (icon) setIcon(heading.createSpan({ cls: 'wallos-metric-icon' }), icon);
     card.createDiv({ cls: 'wallos-metric-value', text: value });
     card.createDiv({ cls: 'wallos-metric-foot', text: desc });
   }
   private renderSubscriptionsPanel(surface: HTMLElement): void {
     const data = this.data!;
+    const intro = surface.createDiv({ cls: 'wallos-panel-heading' });
+    intro.createEl('h3', { text: '订阅清单' });
+    intro.createSpan({ text: '按到期时间管理所有服务' });
     const controls = surface.createDiv({ cls: 'wallos-controls' });
     const find = controls.createDiv({ cls: 'wallos-search-box' });
     setIcon(find.createSpan(), 'search');
@@ -261,12 +306,16 @@ export class WallosView extends ItemView {
     subs.forEach(sub => this.renderSubscription(holder, sub));
   }
   private renderSubscription(container: HTMLElement, sub: Subscription): void {
-    const card = container.createDiv({ cls: 'wallos-subscription' });
+    const card = container.createDiv({ cls: 'wallos-subscription' + (Number(sub.inactive) === 1 ? ' is-inactive' : '') });
     const identity = card.createDiv({ cls: 'wallos-subscription-identity' });
     identity.createDiv({ cls: 'wallos-avatar', text: sub.name.charAt(0).toUpperCase() || '?' }).setAttribute('aria-hidden', 'true');
     const detail = identity.createDiv({ cls: 'wallos-subscription-detail' });
     detail.createEl('h3', { text: sub.name });
-    detail.createDiv({ cls: 'wallos-subscription-meta', text: [sub.category_name, periodLabel(sub), sub.payment_method_name, sub.payer_user_name].filter(Boolean).join(' · ') });
+    const subMeta = detail.createDiv({ cls: 'wallos-subscription-meta' });
+    if (sub.category_name) subMeta.createSpan({ cls: 'wallos-category-pill', text: sub.category_name });
+    subMeta.createSpan({ text: periodLabel(sub) });
+    if (sub.payment_method_name) subMeta.createSpan({ text: sub.payment_method_name });
+    if (sub.payer_user_name) subMeta.createSpan({ text: sub.payer_user_name });
     const payment = card.createDiv({ cls: 'wallos-subscription-payment' });
     payment.createDiv({ cls: 'wallos-subscription-price', text: currencyDisplay(sub, this.data!.currencies) });
     const dateLine = payment.createDiv({ cls: 'wallos-subscription-date', text: Number(sub.inactive) === 1 ? '已停用' : sub.next_payment + ' · ' + dueLabel(sub.next_payment) });

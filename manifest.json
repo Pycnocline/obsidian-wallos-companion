@@ -1,7 +1,7 @@
 {
   "id": "wallos-companion",
   "name": "Wallos Companion",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "minAppVersion": "1.11.4",
   "description": "Wallos subscriptions, renewal calendar, budgets, statistics and category management for Obsidian.",
   "author": "Pycnocline",

@@ -48,3 +48,9 @@
 新版本更新 manifest.json、package.json 和 versions.json 的版本号后，推送 main 触发 GitHub Actions 自动构建 Release；BRAT 从 Release 读取三个插件附件。见 docs/DEVELOPMENT.md。
 
 安全细节见 SECURITY.md。插件 MIT License；Wallos 为独立 GPL-3.0 项目。
+
+## 与其他 Obsidian 插件共存
+
+Wallos 面板使用专用的 WorkspaceLeaf，不覆盖已存在的侧栏视图。恢复工作区布局时，Wallos 会把首次网络请求安排到布局就绪和浏览器空闲之后。插件不读写 Notebook Navigator 的配置、IndexedDB 或 Obsidian Vault 文件。
+
+若 Notebook Navigator 在应用启动后短暂显示空目录，仍需区分布局/缓存启动时序、同步插件传递设置的时间以及第三方插件冲突。Wallos 的测试保证自身不复用其他插件视图，但尚未在实际用户设备中证明目录空白的具体成因。
