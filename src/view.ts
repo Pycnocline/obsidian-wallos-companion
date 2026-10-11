@@ -405,7 +405,7 @@ export class WallosView extends ItemView {
     else for(const channel of data.notificationChannels){
       const row=channels.createDiv({cls:'wallos-notification-row'});
       row.createSpan({text:channel.name});
-      row.createSpan({text:channel.enabled?'已启用':'未启用',cls:channel.enabled?'wallos-channel-active':'wallos-channel-inactive'});
+      row.createSpan({text:!channel.configured?'未配置':channel.enabled?'已启用':'未启用',cls:channel.enabled?'wallos-channel-active':'wallos-channel-inactive'});
     }
     const link=surface.createDiv({cls:'wallos-manager-links'});
     actionButton(link,'bell','打开 Wallos 通知设置',()=>this.openWallos());

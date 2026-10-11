@@ -45,7 +45,7 @@ export interface DashboardData {
   mainCurrencyId?: number | null;
   preferences?: WallosPreferences | null;
   budget?: BudgetInfo | null;
-  notificationChannels?: { name: string; enabled: boolean }[] | null;
+  notificationChannels?: { name: string; enabled: boolean; configured: boolean }[] | null;
 }
 
 export type ViewFilter = 'upcoming' | 'all' | 'inactive';

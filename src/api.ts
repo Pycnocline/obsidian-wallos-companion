@@ -120,11 +120,16 @@ export class WallosApi {
   }
 
   /** Strip secrets from Wallos's notification settings response before returning anything to the view. */
-  async getNotificationSummary(): Promise<{ name: string; enabled: boolean }[]> {
+  async getNotificationSummary(): Promise<{ name: string; enabled: boolean; configured: boolean }[]> {
     const result = await this.post<ApiResponse>('/api/notifications/get_notification_settings.php');
     const raw = result.notification_settings;
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('通知设置返回格式无效');
-    const source = raw as Record<string, unknown>;
+    // Wallos 5.8.1 returns [] (not {}) when notification_settings has no DB row.
+    // An empty array is a valid unconfigured state, not a failed API request.
+    const isUnconfigured = Array.isArray(raw) && raw.length === 0;
+    if (!isUnconfigured && (!raw || typeof raw !== 'object' || Array.isArray(raw))) {
+      throw new Error('通知设置返回格式无效');
+    }
+    const source = isUnconfigured ? {} : raw as Record<string, unknown>;
     const names: [string, string][] = [
       ['email_notifications', 'Email'], ['discord_notifications', 'Discord'],
       ['gotify_notifications', 'Gotify'], ['ntfy_notifications', 'ntfy'],
@@ -133,9 +138,9 @@ export class WallosApi {
     ];
     return names.map(([key, name]) => {
       const value = source[key];
-      const enabled = value && typeof value === 'object' && !Array.isArray(value) &&
-        Number((value as Record<string, unknown>).enabled) === 1;
-      return { name, enabled: Boolean(enabled) };
+      const configured = Boolean(value && typeof value === 'object' && !Array.isArray(value));
+      const enabled = configured && Number((value as Record<string, unknown>).enabled) === 1;
+      return { name, enabled, configured };
     });
   }
 

@@ -131,6 +131,43 @@ describe('Wallos resource, budget and forecast APIs', () => {
 
 
 describe('notification secret redaction', () => {
+  it('treats Wallos 5.8.1 empty-array notification settings as unconfigured, not a failure', async () => {
+    const api = new WallosApi(cred, async () => mockReply({
+      success: true, title: 'notification_settings', notification_settings: [], notes: [],
+    }));
+    const channels = await api.getNotificationSummary();
+    expect(channels).toHaveLength(8);
+    expect(channels.every(channel => channel.configured === false && channel.enabled === false)).toBe(true);
+    expect(channels.some(channel => channel.name === 'ntfy')).toBe(true);
+  });
+
+  it('accepts empty-object notifications but rejects malformed nonempty arrays', async () => {
+    const empty = new WallosApi(cred, async () => mockReply({success: true, notification_settings: {}}));
+    expect((await empty.getNotificationSummary()).every(item => !item.configured)).toBe(true);
+    const invalid = new WallosApi(cred, async () => mockReply({success: true, notification_settings: [{enabled: 1}]}));
+    await expect(invalid.getNotificationSummary()).rejects.toThrow('通知设置返回格式无效');
+  });
+
+  it('keeps the dashboard healthy with an empty notifications response', async () => {
+    const api = new WallosApi(cred, async req => {
+      if (req.url.endsWith('get_subscriptions.php')) return mockReply({success: true, subscriptions: []});
+      if (req.url.endsWith('get_monthly_cost.php')) return mockReply({success: true, localized_monthly_cost: '$0.00', currency_code: 'USD'});
+      if (req.url.endsWith('get_currencies.php')) return mockReply({success: true, currencies: [{id: 1, name: 'USD', code: 'USD', symbol: '$'}], main_currency: 1});
+      if (req.url.endsWith('get_categories.php')) return mockReply({success: true, categories: []});
+      if (req.url.endsWith('get_payment_methods.php')) return mockReply({success: true, payment_methods: []});
+      if (req.url.endsWith('get_household.php')) return mockReply({success: true, household: []});
+      if (req.url.endsWith('get_settings.php')) return mockReply({success: true, settings: {}});
+      if (req.url.endsWith('get_user.php')) return mockReply({success: true, user: {budget: 0}});
+      if (req.url.endsWith('get_period_budget.php')) return mockReply({success: true, period_budget: 0});
+      if (req.url.endsWith('get_notification_settings.php')) return mockReply({success: true, notification_settings: [], notes: []});
+      throw new Error('Unexpected endpoint ' + req.url);
+    });
+    const data = await api.loadDashboard(new Date(2026, 9, 11));
+    expect(data.metadataWarnings).not.toContain('通知渠道读取失败');
+    expect(data.notificationChannels).toHaveLength(8);
+    expect(data.notificationChannels?.every(ch => !ch.configured)).toBe(true);
+  });
+
   it('only returns enabled flags, not server credentials', async () => {
     const api = new WallosApi(cred, async () => mockReply({success:true,notification_settings:{
       ntfy_notifications: {enabled: 1, headers: 'DO_NOT_LEAK'},
@@ -139,7 +176,10 @@ describe('notification secret redaction', () => {
     }}));
     const result = await api.getNotificationSummary();
     expect(result.find(x=>x.name==='ntfy')?.enabled).toBe(true);
+    expect(result.find(x=>x.name==='ntfy')?.configured).toBe(true);
     expect(result.find(x=>x.name==='Email')?.enabled).toBe(false);
+    expect(result.find(x=>x.name==='Email')?.configured).toBe(true);
+    expect(result.find(x=>x.name==='Gotify')?.configured).toBe(false);
     expect(JSON.stringify(result)).not.toContain('DO_NOT_LEAK');
   });
 });
