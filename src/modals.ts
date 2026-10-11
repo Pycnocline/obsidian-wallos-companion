@@ -1,7 +1,7 @@
 import { App, Modal, Notice, setIcon } from 'obsidian';
 import type WallosCompanionPlugin from './main';
 import type { DashboardData, NamedOption, Subscription, Currency } from './model';
-import { todayYmd, validateSubscriptionForm } from './model';
+import { todayYmd, validYmd, validateSubscriptionForm } from './model';
 
 function textField(parent: HTMLElement, labelText: string, value: string, type = 'text', required = false): HTMLInputElement {
   const wrapper = parent.createDiv({ cls: 'wallos-field' });
@@ -95,10 +95,17 @@ export class SubscriptionModal extends Modal {
     ], String(current?.cycle ?? 3));
     const nextPayment = textField(fields, '下次续费日期', current?.next_payment ?? todayYmd(), 'date', true);
     const startDate = textField(fields, '订阅开始日期', current?.start_date || todayYmd(), 'date');
+    const cancellationDate = textField(fields, '取消日期（可选）', current?.cancellation_date || '', 'date');
     const category = selectField(fields, '分类', namedOptions(this.data.categories, true), String(current?.category_id ?? ''));
     const paymentMethod = selectField(fields, '支付方式', namedOptions(this.data.paymentMethods, true), String(current?.payment_method_id ?? ''));
     const payer = selectField(fields, '付款人', namedOptions(this.data.household, true), String(current?.payer_user_id ?? ''));
     const url = textField(fields, '订阅网页（可选）', current?.url ?? '', 'url');
+    const logo = textField(fields, '图标来源 URL（可选）', '', 'url');
+    logo.placeholder = 'https://example.com/logo.png';
+    const replacement = selectField(fields, '停用后替代订阅（可选）', [
+      { value: '', label: '未设置' },
+      ...this.data.subscriptions.filter(s => s.id !== current?.id).map(s => ({value: String(s.id), label: s.name})),
+    ], String(current?.replacement_subscription_id ?? ''));
 
     const noteField = fields.createDiv({ cls: 'wallos-field wallos-field-wide' });
     const noteLabel = noteField.createEl('label', { text: '备注' });
@@ -138,12 +145,18 @@ export class SubscriptionModal extends Modal {
         message.setText(validation);
         return;
       }
-      if (url.value.trim()) {
+      if (cancellationDate.value && !validYmd(cancellationDate.value)) {
+        message.setText('取消日期无效');
+        return;
+      }
+      if (url.value.trim() || logo.value.trim()) {
         try {
-          const parsedUrl = new URL(url.value.trim());
-          if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+          for (const raw of [url.value.trim(), logo.value.trim()].filter(Boolean)) {
+            const parsedUrl = new URL(raw);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
+          }
         } catch {
-          message.setText('订阅网页必须为 HTTP 或 HTTPS 地址');
+          message.setText('订阅网页和图标来源必须为 HTTP 或 HTTPS 地址');
           return;
         }
       }
@@ -155,6 +168,9 @@ export class SubscriptionModal extends Modal {
         cycle: cycle.value,
         next_payment: nextPayment.value,
         start_date: startDate.value,
+        cancellation_date: cancellationDate.value,
+        replacement_subscription_id: inactive.checked ? replacement.value : '',
+        ...(logo.value.trim() ? { logo_url: logo.value.trim() } : {}),
         category_id: category.value || (editing ? '' : undefined),
         payment_method_id: paymentMethod.value || (editing ? '' : undefined),
         payer_user_id: payer.value || (editing ? '' : undefined),

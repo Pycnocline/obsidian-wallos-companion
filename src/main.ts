@@ -73,6 +73,7 @@ export default class WallosCompanionPlugin extends Plugin {
     if (reply.status === 'pending') throw new Error('尚未收到授权，请在浏览器确认后重试');
     if (reply.status !== 'approved' || !reply.api_key) throw new Error('授权已过期，请重新登录');
     const id = `wallos-companion-${crypto.randomUUID()}`;
+    // SecretStorage is local to this device; never persist API keys in synced plugin data.
     this.app.secretStorage.setSecret(id, reply.api_key);
     this.settings.apiKeySecretId = id;
     await this.saveSettings();

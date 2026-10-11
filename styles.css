@@ -125,3 +125,79 @@
 }
 .is-mobile .wallos-icon-button, .is-mobile .wallos-subscription-actions .wallos-icon-button { width: 44px; min-width: 44px; min-height: 44px; }
 .is-mobile .wallos-surface { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+
+/* Extended Wallos Companion navigation, forecast calendar and resource management. */
+.wallos-metrics-wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.wallos-metrics-wide .wallos-metric-value { font-size: clamp(0.95rem, 2vw, 1.32rem); }
+.wallos-page-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 12px; scrollbar-width: none; }
+.wallos-page-tabs .wallos-button { flex: 1 0 auto; min-width: 98px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); }
+.wallos-page-tabs .wallos-button.is-active { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); }
+.wallos-advanced-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 4px 0 16px; }
+.wallos-filter-select { font-size: var(--font-ui-small); min-width: 0; }
+.wallos-calendar-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.wallos-calendar-bar h3 { font-size: 1.08rem; min-width: 124px; text-align: center; margin: 0; }
+.wallos-calendar-summary { color: var(--text-muted); font-size: var(--font-ui-smaller); margin: 14px 0; }
+.wallos-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.wallos-calendar-weekday { text-align: center; color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 7px 0; }
+.wallos-calendar-day, .wallos-calendar-blank { min-width: 0; min-height: 93px; }
+.wallos-calendar-day { border: 1px solid var(--background-modifier-border); background: var(--background-secondary); border-radius: var(--radius-m); color: var(--text-normal); display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 8px; gap: 5px; cursor: pointer; touch-action: manipulation; }
+.wallos-calendar-day:hover { border-color: var(--interactive-accent); }
+.wallos-calendar-day.is-today { border-color: var(--text-accent); }
+.wallos-calendar-day.is-selected { background: var(--background-modifier-hover); outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.wallos-calendar-daynum { font-size: var(--font-ui-small); font-weight: 650; }
+.wallos-calendar-dots { color: var(--text-accent); font-size: var(--font-ui-smaller); font-weight: 650; }
+.wallos-calendar-eventname { font-size: var(--font-ui-smaller); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.wallos-calendar-events { border-top: 1px solid var(--background-modifier-border); margin: 16px 0 20px; padding-top: 12px; }
+.wallos-calendar-events h3 { font-size: 1rem; margin: 7px 0 12px; }
+.wallos-calendar-event { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-bottom: 1px solid var(--background-modifier-border); min-height: 54px; padding: 6px 1px; }
+.wallos-calendar-event > span:first-child { flex: 1 1 130px; }
+.wallos-calendar-event > span:nth-child(2) { color: var(--text-muted); }
+.wallos-section-heading { margin: 22px 0 10px; font-size: 1.1em; }
+.wallos-chart { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l); background: var(--background-secondary); display: flex; align-items: stretch; min-height: 210px; padding: 12px 8px; gap: 7px; }
+.wallos-chart-col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; }
+.wallos-chart-amount { font-size: clamp(0.63rem, 1.8vw, 0.78rem); text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.wallos-chart-track { width: 100%; flex: 1; min-height: 110px; max-width: 95px; display: flex; flex-direction: column; justify-content: flex-end; }
+.wallos-chart-bar { border-radius: 4px 4px 0 0; width: 100%; background: var(--interactive-accent); min-height: 0; }
+.wallos-chart-label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.wallos-stats-categories, .wallos-resource-list { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l); overflow: hidden; margin-bottom: 12px; }
+.wallos-stat-category, .wallos-resource-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 14px; padding: 12px 10px; border-bottom: 1px solid var(--background-modifier-border); }
+.wallos-stat-category:last-child, .wallos-resource-row:last-child { border-bottom: none; }
+.wallos-stat-category > span:last-child { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wallos-manager-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 15px 0; }
+.wallos-manager-summary .wallos-metric-value { font-size: 1.15em; }
+.wallos-manager-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.wallos-manager-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.wallos-manager-tabs .wallos-button { flex: 1; background: var(--background-secondary); }
+.wallos-manager-tabs .wallos-button.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.wallos-resource-name { flex: 1; min-width: 130px; overflow-wrap: anywhere; }
+.wallos-resource-used { color: var(--text-muted); margin-left: 7px; font-size: var(--font-ui-smaller); }
+.wallos-resource-actions { display: flex; gap: 5px; }
+.wallos-resource-actions .wallos-button { min-height: 40px; padding: 7px 12px; }
+.wallos-manager-form { border-top: 1px solid var(--background-modifier-border); padding-top: 10px; }
+.wallos-preference-switches { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px 12px; }
+.wallos-root .wallos-calendar-day:focus-visible, .wallos-root .wallos-page-tabs .wallos-button:focus-visible {
+  outline: 2px solid var(--interactive-accent); outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .wallos-advanced-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .wallos-metrics-wide { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .wallos-metrics-wide .wallos-metric:first-child { grid-column: auto; }
+  .wallos-manager-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 480px) {
+  .wallos-page-tabs .wallos-button { min-width: 85px; padding: 7px 9px; font-size: var(--font-ui-smaller); }
+  .wallos-calendar-grid { gap: 3px; }
+  .wallos-calendar-day, .wallos-calendar-blank { min-height: 65px; }
+  .wallos-calendar-day { padding: 5px 3px; gap: 3px; }
+  .wallos-calendar-daynum, .wallos-calendar-dots { font-size: 0.72rem; }
+  .wallos-calendar-eventname { display: none; }
+  .wallos-chart { padding: 10px 4px; gap: 4px; }
+  .wallos-preference-switches { grid-template-columns: minmax(0,1fr); }
+  .wallos-resource-row { padding: 8px; }
+}
+
+.wallos-notifications { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.wallos-notification-row { padding: 10px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); border-radius: var(--radius-m); display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; font-size: var(--font-ui-smaller); }
+.wallos-channel-active { color: var(--text-accent); }
+.wallos-channel-inactive { color: var(--text-muted); }
+@media(max-width:480px){.wallos-notifications{grid-template-columns:minmax(0,1fr)}}

@@ -1,5 +1,5 @@
 import type { RequestUrlParam, RequestUrlResponse } from 'obsidian';
-import type { Currency, DashboardData, MonthlyCost, NamedOption, Subscription } from './model';
+import type { BudgetInfo, Currency, DashboardData, MetadataKind, MonthlyCost, NamedOption, PeriodBudget, Subscription, WallosPreferences } from './model';
 import { safeHttpsUrl } from './model';
 
 export interface WallosCredentials {
@@ -106,28 +106,87 @@ export class WallosApi {
     return data as unknown as MonthlyCost;
   }
 
+  async getCurrencyBundle(): Promise<{ currencies: Currency[]; mainCurrencyId: number | null }> {
+    const result = await this.post<ApiResponse>(readPath.currencies);
+    if (!Array.isArray(result.currencies)) throw new Error('币种接口返回格式无效');
+    const mainId = Number(result.main_currency);
+    return { currencies: result.currencies as Currency[], mainCurrencyId: Number.isSafeInteger(mainId) && mainId > 0 ? mainId : null };
+  }
+
+  async getPreferences(): Promise<WallosPreferences> {
+    const result = await this.post<ApiResponse>('/api/settings/get_settings.php');
+    if (!result.settings || typeof result.settings !== 'object' || Array.isArray(result.settings)) throw new Error('偏好设置返回格式无效');
+    return result.settings as WallosPreferences;
+  }
+
+  /** Strip secrets from Wallos's notification settings response before returning anything to the view. */
+  async getNotificationSummary(): Promise<{ name: string; enabled: boolean }[]> {
+    const result = await this.post<ApiResponse>('/api/notifications/get_notification_settings.php');
+    const raw = result.notification_settings;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('通知设置返回格式无效');
+    const source = raw as Record<string, unknown>;
+    const names: [string, string][] = [
+      ['email_notifications', 'Email'], ['discord_notifications', 'Discord'],
+      ['gotify_notifications', 'Gotify'], ['ntfy_notifications', 'ntfy'],
+      ['pushover_notifications', 'Pushover'], ['telegram_notifications', 'Telegram'],
+      ['webhook_notifications', 'Webhooks'], ['serverchan_notifications', 'Server酱'],
+    ];
+    return names.map(([key, name]) => {
+      const value = source[key];
+      const enabled = value && typeof value === 'object' && !Array.isArray(value) &&
+        Number((value as Record<string, unknown>).enabled) === 1;
+      return { name, enabled: Boolean(enabled) };
+    });
+  }
+
+  async getBudget(): Promise<BudgetInfo> {
+    const [user, period] = await Promise.all([
+      this.post<ApiResponse>('/api/users/get_user.php'),
+      this.post<ApiResponse>('/api/subscriptions/get_period_budget.php').catch(() => null),
+    ]);
+    const raw = user.user && typeof user.user === 'object' ? user.user as Record<string, unknown> : {};
+    // Only retain the budget number. Never retain the returned profile or API credentials.
+    return { monthly_budget: Number(raw.budget) || 0, period: period as PeriodBudget | null };
+  }
+
+  /** Read 6 calendar-month cash-flow forecasts directly from Wallos. */
+  async getMonthlyTrend(now: Date): Promise<{ month: string; cost: MonthlyCost }[]> {
+    const dates = Array.from({length: 6}, (_, i) => new Date(now.getFullYear(), now.getMonth() + i - 2, 1));
+    return Promise.all(dates.map(async (date) => ({
+      month: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'),
+      cost: await this.getMonthlyCost(date),
+    })));
+  }
+
   async loadDashboard(now = new Date()): Promise<DashboardData> {
-    const [subscriptions, monthlyResult, currenciesResult, categoriesResult, paymentResult, householdResult] = await Promise.all([
+    const [subscriptions, monthly, currencyBundle, categoriesResult, paymentResult, householdResult, preferences, budget, notificationChannels] = await Promise.all([
       this.getSubscriptions(),
-      this.getMonthlyCost(now).then((value) => ({ status: 'fulfilled' as const, value }), () => ({ status: 'rejected' as const })),
-      this.getOptions<Currency>(readPath.currencies, 'currencies'),
+      this.getMonthlyCost(now).catch(() => null),
+      this.getCurrencyBundle().catch(() => null),
       this.getOptions<NamedOption>(readPath.categories, 'categories'),
       this.getOptions<NamedOption>(readPath.paymentMethods, 'payment_methods'),
       this.getOptions<NamedOption>(readPath.household, 'household'),
+      this.getPreferences().catch(() => null),
+      this.getBudget().catch(() => null),
+      this.getNotificationSummary().catch(() => null),
     ]);
     const metadataWarnings: string[] = [];
-    if (monthlyResult.status === 'rejected') metadataWarnings.push('本月费用获取失败');
-    if (!currenciesResult) metadataWarnings.push('币种列表获取失败，暂时无法创建或编辑订阅');
+    if (!monthly) metadataWarnings.push('本月费用获取失败');
+    if (!currencyBundle) metadataWarnings.push('币种列表获取失败，暂时无法创建或编辑订阅');
     if (!categoriesResult) metadataWarnings.push('分类列表获取失败');
     if (!paymentResult) metadataWarnings.push('支付方式列表获取失败');
     if (!householdResult) metadataWarnings.push('家庭成员列表获取失败');
+    if (!preferences) metadataWarnings.push('Wallos 偏好设置读取失败');
+    if (!budget) metadataWarnings.push('预算信息读取失败');
+    if (!notificationChannels) metadataWarnings.push('通知渠道读取失败');
     return {
-      subscriptions,
-      monthly: monthlyResult.status === 'fulfilled' ? monthlyResult.value : null,
-      currencies: currenciesResult ?? [],
+      subscriptions, monthly,
+      currencies: currencyBundle?.currencies ?? [],
+      mainCurrencyId: currencyBundle?.mainCurrencyId ?? null,
       categories: categoriesResult ?? [],
       paymentMethods: paymentResult ?? [],
       household: householdResult ?? [],
+      preferences, budget, notificationChannels,
       metadataWarnings,
     };
   }
@@ -139,6 +198,42 @@ export class WallosApi {
     } catch {
       return null;
     }
+  }
+
+  async modifyMetadata(
+    kind: MetadataKind, action: 'add' | 'edit' | 'delete',
+    fields: Record<string, string | number | null> = {}, id?: number,
+  ): Promise<void> {
+    const path: Record<MetadataKind, string> = {
+      categories: '/api/categories/set_categories.php',
+      paymentMethods: '/api/payment_methods/set_payment_methods.php',
+      household: '/api/household/set_household.php',
+      currencies: '/api/currencies/set_currencies.php',
+    };
+    if (action !== 'add' && (!Number.isSafeInteger(id) || (id ?? 0) <= 0)) throw new Error('请选择有效的项目');
+    if (action !== 'delete' && (!fields.name || !String(fields.name).trim())) throw new Error('名称不能为空');
+    await this.post<ApiResponse>(path[kind], { ...fields, action, ...(id == null ? {} : { id }) });
+  }
+
+  async savePreferences(fields: Partial<WallosPreferences>): Promise<void> {
+    const allowed = ['week_starts_sunday', 'convert_currency', 'hide_disabled', 'disabled_to_bottom', 'show_original_price', 'monthly_price', 'upcoming_payments_limit'] as const;
+    const values: Record<string, number> = {};
+    for (const key of allowed) {
+      const val = fields[key];
+      if (val !== undefined) {
+        if (!Number.isInteger(val) || val < 0 || (key !== 'upcoming_payments_limit' && val > 1)) throw new Error('偏好设置的值无效');
+        values[key] = val;
+      }
+    }
+    if (!Object.keys(values).length) return;
+    await this.post<ApiResponse>('/api/settings/set_settings.php', values);
+  }
+
+  async saveBudget(fields: { monthly_budget?: number; period_budget?: number; budget_period_type?: string; budget_period_anchor_date?: string }): Promise<void> {
+    if (fields.monthly_budget !== undefined && (!Number.isFinite(fields.monthly_budget) || fields.monthly_budget < 0)) throw new Error('月度预算不能为负数');
+    if (fields.period_budget !== undefined && (!Number.isFinite(fields.period_budget) || fields.period_budget < 0)) throw new Error('周期预算不能为负数');
+    if (fields.budget_period_type && !['weekly', 'fortnightly', 'monthly'].includes(fields.budget_period_type)) throw new Error('预算周期无效');
+    await this.post<ApiResponse>('/api/users/set_budget.php', fields);
   }
 
   async saveSubscription(input: Record<string, string | number | boolean | null | undefined>, id?: number): Promise<void> {

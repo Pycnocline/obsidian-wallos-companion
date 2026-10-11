@@ -43,9 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt->bindValue(':id', $id, SQLITE3_TEXT);
         $stmt->bindValue(':hash', hash('sha256', $verifier), SQLITE3_TEXT);
         $stmt->bindValue(':created', $now, SQLITE3_INTEGER);
-        $stmt->bindValue(':expires', $now + 180, SQLITE3_INTEGER);
+        $stmt->bindValue(':expires', $now + 600, SQLITE3_INTEGER);
         $stmt->execute();
-        respond(200, ['success' => true, 'id' => $id, 'expires_in' => 180]);
+        respond(200, ['success' => true, 'id' => $id, 'expires_in' => 600]);
     }
     if ($action === 'claim') {
         $id = (string) ($_POST['id'] ?? '');

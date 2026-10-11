@@ -6,6 +6,7 @@ on:
       - 'manifest.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'package-lock.json'
       - 'src/**'
       - 'esbuild.config.mjs'
       - '.github/workflows/release.yml'
@@ -22,7 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci
       - run: npm run check
       - name: Set release tag
         id: version

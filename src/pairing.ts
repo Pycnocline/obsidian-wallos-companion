@@ -29,7 +29,7 @@ export class PairingClient {
   async start(verifier: string): Promise<PairStart> {
     const r = await this.call({ action: 'start', verifier });
     if (typeof r.id !== 'string' || !/^[0-9a-f]{32}$/.test(r.id)) throw new Error('配对编号无效');
-    return { id: r.id, expires_in: Number(r.expires_in) || 180 };
+    return { id: r.id, expires_in: Number(r.expires_in) || 600 };
   }
   async claim(id: string, verifier: string): Promise<PairStatus> {
     const r = await this.call({ action: 'claim', id, verifier });

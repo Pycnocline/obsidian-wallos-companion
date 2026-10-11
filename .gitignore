@@ -7,3 +7,4 @@ coverage/
 .env
 .env.*
 *.zip
+node_modules

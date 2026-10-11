@@ -1,8 +1,8 @@
 {
   "name": "obsidian-wallos",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Mobile-friendly Wallos subscription companion for Obsidian",
+  "description": "Mobile-first Wallos subscriptions, calendar, budgets, categories, payments and statistics in Obsidian",
   "type": "module",
   "scripts": {
     "dev": "node esbuild.config.mjs",

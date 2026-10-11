@@ -50,7 +50,7 @@ export class WallosSettingTab extends PluginSettingTab {
     containerEl.createEl('h3', { text: '登录 · Someday SSO / Cloudflare' });
     containerEl.createEl('p', { text: '无需手动填写 API Key：先在浏览器登录，再确认允许 Obsidian 读取 Wallos。Cloudflare 身份验证由现有 Someday 统一登录完成。', cls: 'setting-item-description' });
     new Setting(containerEl).setName(this.plugin.isConnected() ? '已连接 Wallos' : '尚未连接')
-      .setDesc('配对凭据仅保存在本设备 SecretStorage 中，不写入 Vault。')
+      .setDesc('配对有效期 10 分钟；API Key 仅保存在本设备 SecretStorage，不写入 Vault。')
       .addButton(b => b.setButtonText('1. 登录 Cloudflare / Someday').onClick(async () => {
         try { await this.plugin.startLogin(); this.display(); } catch (e) { new (await import('obsidian')).Notice(e instanceof Error ? e.message : '登录失败'); }
       }))
