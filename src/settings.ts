@@ -4,18 +4,12 @@ import { safeHttpsUrl } from './model';
 
 export interface WallosPluginSettings {
   baseUrl: string;
-  apiKeySecretId: string;
-  accessClientIdSecretId: string;
-  accessClientSecretSecretId: string;
   dueSoonDays: number;
   refreshMinutes: number;
 }
 
 export const DEFAULT_SETTINGS: WallosPluginSettings = {
   baseUrl: 'https://wallos.iamin.icu',
-  apiKeySecretId: '',
-  accessClientIdSecretId: '',
-  accessClientSecretSecretId: '',
   dueSoonDays: 30,
   refreshMinutes: 10,
 };
@@ -30,7 +24,7 @@ export class WallosSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.createEl('h2', { text: 'Wallos Companion' });
     containerEl.createEl('p', {
-      text: 'Wallos 负责存储与服务端续费提醒。Obsidian 仅作为管理客户端；API Key 和 Access Token 使用 Obsidian SecretStorage，其他设置可同步。',
+      text: 'Wallos 负责存储与服务端续费提醒。Obsidian 仅作为管理客户端；API Key、Access Token 和对应的密钥引用均按设备独立保存，不随 Vault 配置同步。',
       cls: 'setting-item-description',
     });
 
@@ -68,10 +62,9 @@ export class WallosSettingTab extends PluginSettingTab {
       .setName('Wallos API Key')
       .setDesc('高级备用方式：仅在配对服务不可用时使用。普通用户不需要操作。')
       .addComponent((el) => new SecretComponent(this.app, el)
-        .setValue(this.plugin.settings.apiKeySecretId)
+        .setValue(this.plugin.getCredentialSecretId('apiKeySecretId'))
         .onChange(async (id) => {
-          this.plugin.settings.apiKeySecretId = id ?? '';
-          await this.plugin.saveSettings();
+          this.plugin.setCredentialSecretId('apiKeySecretId', id ?? '');
         }));
 
     containerEl.createEl('h3', { text: 'Cloudflare Access（可选）' });
@@ -83,18 +76,16 @@ export class WallosSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Service Token Client ID')
       .addComponent((el) => new SecretComponent(this.app, el)
-        .setValue(this.plugin.settings.accessClientIdSecretId)
+        .setValue(this.plugin.getCredentialSecretId('accessClientIdSecretId'))
         .onChange(async (id) => {
-          this.plugin.settings.accessClientIdSecretId = id ?? '';
-          await this.plugin.saveSettings();
+          this.plugin.setCredentialSecretId('accessClientIdSecretId', id ?? '');
         }));
     new Setting(containerEl)
       .setName('Service Token Client Secret')
       .addComponent((el) => new SecretComponent(this.app, el)
-        .setValue(this.plugin.settings.accessClientSecretSecretId)
+        .setValue(this.plugin.getCredentialSecretId('accessClientSecretSecretId'))
         .onChange(async (id) => {
-          this.plugin.settings.accessClientSecretSecretId = id ?? '';
-          await this.plugin.saveSettings();
+          this.plugin.setCredentialSecretId('accessClientSecretSecretId', id ?? '');
         }));
 
     containerEl.createEl('h3', { text: '界面' });

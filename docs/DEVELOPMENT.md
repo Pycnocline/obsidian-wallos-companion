@@ -19,7 +19,7 @@
 
 ## 数据处理
 
-仅 data.json 保存非敏感设置与 SecretStorage 引用 ID。API Key 保留在设备本地 SecretStorage。订阅、分类、预算等仅用于会话内存显示，不写入笔记仓库。server/obsidian-pair.php 是用户独立部署的桥接，不能把生产 SQLite 与密钥提交到仓库。
+仅 data.json 保存可同步的非敏感设置；SecretStorage 引用 ID 存在 app.saveLocalStorage 的 Vault 专属设备本地数据中。API Key 保留在设备本地 SecretStorage，旧版同步引用只用于一次性迁移，随后从 data.json 移除。订阅、分类、预算等仅用于会话内存显示，不写入笔记仓库。server/obsidian-pair.php 是用户独立部署的桥接，不能把生产 SQLite 与密钥提交到仓库。
 
 ## 工作区及响应式兼容性
 

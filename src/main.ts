@@ -1,5 +1,6 @@
 import { Notice, Platform, Plugin, WorkspaceLeaf, requestUrl } from 'obsidian';
 import { WallosApi } from './api';
+import { CredentialField, CredentialRefs, loadLocalCredentials, persistLocalCredentials, omitCredentialsFromSettings } from './auth-storage';
 import { PairingClient, randomVerifier } from './pairing';
 import { safeHttpsUrl } from './model';
 import { DEFAULT_SETTINGS, WallosPluginSettings, WallosSettingTab } from './settings';
@@ -8,21 +9,29 @@ import { revealWallosLeaf } from './workspace';
 
 export default class WallosCompanionPlugin extends Plugin {
   settings: WallosPluginSettings = { ...DEFAULT_SETTINGS };
+  private credentials: CredentialRefs = { apiKeySecretId: '', accessClientIdSecretId: '', accessClientSecretSecretId: '' };
   api!: WallosApi;
   pairing!: PairingClient;
   private activePair: { id: string; verifier: string; expiresAt: number } | null = null;
 
   async onload(): Promise<void> {
-    const saved = await this.loadData() as Partial<WallosPluginSettings> | null;
-    this.settings = { ...DEFAULT_SETTINGS, ...saved };
+    const saved = await this.loadData() as (Partial<WallosPluginSettings> & Partial<CredentialRefs>) | null;
+    // Synced settings must never own the local SecretStorage references.
+    this.settings = { ...DEFAULT_SETTINGS, ...omitCredentialsFromSettings(saved ?? {}) };
+    this.credentials = loadLocalCredentials(this.app, this.app.secretStorage, saved ?? {});
+    // Remove secret IDs from older versions' data.json after local migration.
+    if (saved && ['apiKeySecretId', 'accessClientIdSecretId', 'accessClientSecretSecretId']
+        .some((key) => Object.prototype.hasOwnProperty.call(saved, key))) {
+      await this.saveData(this.settings);
+    }
     // Do not trigger a background API refresh just 30 seconds after startup:
     // honor the configured refresh cadence from initial plugin load.
     this.nextRefreshAt = Date.now() + Math.max(0, this.settings.refreshMinutes) * 60_000;
     this.api = new WallosApi(() => ({
       baseUrl: this.settings.baseUrl,
-      apiKey: this.getSecret(this.settings.apiKeySecretId),
-      accessClientId: this.getSecret(this.settings.accessClientIdSecretId),
-      accessClientSecret: this.getSecret(this.settings.accessClientSecretSecretId),
+      apiKey: this.getSecret(this.credentials.apiKeySecretId),
+      accessClientId: this.getSecret(this.credentials.accessClientIdSecretId),
+      accessClientSecret: this.getSecret(this.credentials.accessClientSecretSecretId),
     }), requestUrl);
 
     this.pairing = new PairingClient(() => this.settings.baseUrl, requestUrl);
@@ -79,8 +88,7 @@ export default class WallosCompanionPlugin extends Plugin {
     const id = `wallos-companion-${crypto.randomUUID()}`;
     // SecretStorage is local to this device; never persist API keys in synced plugin data.
     this.app.secretStorage.setSecret(id, reply.api_key);
-    this.settings.apiKeySecretId = id;
-    await this.saveSettings();
+    this.setCredentialSecretId('apiKeySecretId', id);
     this.activePair = null;
     new Notice('Wallos 已连接');
     this.notifyViewSettingsChanged();
@@ -90,14 +98,23 @@ export default class WallosCompanionPlugin extends Plugin {
   }
 
   async logout(): Promise<void> {
-    this.settings.apiKeySecretId = '';
+    this.setCredentialSecretId('apiKeySecretId', '');
     this.activePair = null;
-    await this.saveSettings();
     this.notifyViewSettingsChanged();
   }
 
   hasPendingPair(): boolean { return this.activePair !== null && Date.now() < this.activePair.expiresAt; }
-  isConnected(): boolean { return Boolean(this.getSecret(this.settings.apiKeySecretId)); }
+  isConnected(): boolean { return Boolean(this.getSecret(this.credentials.apiKeySecretId)); }
+
+  getCredentialSecretId(field: CredentialField): string {
+    return this.credentials[field];
+  }
+
+  setCredentialSecretId(field: CredentialField, id: string): void {
+    this.credentials[field] = id;
+    persistLocalCredentials(this.app, this.credentials);
+    this.notifyViewSettingsChanged();
+  }
 
 
   async onunload(): Promise<void> {
