@@ -1,17 +1,21 @@
 import { App, PluginSettingTab, SecretComponent, Setting } from 'obsidian';
 import type WallosCompanionPlugin from './main';
 import { safeHttpsUrl } from './model';
+import { OverviewCard, defaultOverviewCards } from './overview';
+import { OverviewSettingsModal } from './overview-settings';
 
 export interface WallosPluginSettings {
   baseUrl: string;
   dueSoonDays: number;
   refreshMinutes: number;
+  overviewCards: OverviewCard[];
 }
 
 export const DEFAULT_SETTINGS: WallosPluginSettings = {
   baseUrl: 'https://wallos.iamin.icu',
   dueSoonDays: 30,
   refreshMinutes: 10,
+  overviewCards: defaultOverviewCards(),
 };
 
 export class WallosSettingTab extends PluginSettingTab {
@@ -104,6 +108,12 @@ export class WallosSettingTab extends PluginSettingTab {
           this.plugin.notifyViewSettingsChanged();
         }));
 
+    new Setting(containerEl)
+      .setName('财务概览卡片')
+      .setDesc('自由添加、隐藏、重排卡片，并自定义指标、数值与提示文字。')
+      .addButton(button => button.setButtonText('编辑财务概览').onClick(() => {
+        new OverviewSettingsModal(this.app, this.plugin).open();
+      }));
     new Setting(containerEl)
       .setName('自动刷新间隔')
       .setDesc('仅在 Obsidian 打开时生效；不影响 Wallos 后端的持续通知。')

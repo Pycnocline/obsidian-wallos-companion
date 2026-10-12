@@ -1,6 +1,7 @@
 import type { RequestUrlParam, RequestUrlResponse } from 'obsidian';
 import type { BudgetInfo, Currency, DashboardData, MetadataKind, MonthlyCost, NamedOption, PeriodBudget, Subscription, WallosPreferences } from './model';
 import { safeHttpsUrl } from './model';
+import { LogoSearchSource, LogoSearchResult, LogoUpload, safeLogoSource, logoSearchPath, parseLogoSearchResponse, makeLogoMultipart } from './logo';
 
 export interface WallosCredentials {
   baseUrl: string;
@@ -15,6 +16,7 @@ interface ApiResponse {
   title?: string;
   message?: string;
   notes?: unknown;
+  logo_warning?: string;
   [key: string]: unknown;
 }
 
@@ -31,7 +33,11 @@ const readPath = {
 export class WallosApi {
   constructor(private readonly credentials: () => WallosCredentials, private readonly transport: Transport) {}
 
-  private async post<T extends ApiResponse>(path: string, fields: Record<string, string | number | boolean | null | undefined> = {}): Promise<T> {
+  private async post<T extends ApiResponse>(
+    path: string,
+    fields: Record<string, string | number | boolean | null | undefined> = {},
+    logoFile?: LogoUpload,
+  ): Promise<T> {
     const { baseUrl, apiKey, accessClientId, accessClientSecret } = this.credentials();
     const url = safeHttpsUrl(baseUrl);
     if (!url) throw new Error('Wallos 地址无效：请使用 HTTPS URL（本机环回地址允许 HTTP）');
@@ -40,13 +46,22 @@ export class WallosApi {
       throw new Error('Cloudflare Access Service Token 需要同时配置 Client ID 和 Client Secret');
     }
 
-    const data = new URLSearchParams();
-    data.set('api_key', apiKey);
-    for (const [key, val] of Object.entries(fields)) {
-      if (val !== null && val !== undefined) data.set(key, String(val));
+    const inputFields = { api_key: apiKey, ...fields };
+    let body: string | ArrayBuffer;
+    let contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+    if (logoFile) {
+      const multipart = await makeLogoMultipart(inputFields, logoFile);
+      body = multipart.body;
+      contentType = multipart.contentType;
+    } else {
+      const data = new URLSearchParams();
+      for (const [key, val] of Object.entries(inputFields)) {
+        if (val !== null && val !== undefined) data.set(key, String(val));
+      }
+      body = data.toString();
     }
     const headers: Record<string, string> = {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'Content-Type': contentType,
       Accept: 'application/json',
     };
     if (accessClientId && accessClientSecret) {
@@ -60,7 +75,7 @@ export class WallosApi {
         url: `${url}${path}`,
         method: 'POST',
         headers,
-        body: data.toString(),
+        body,
         throw: false,
       });
     } catch {
@@ -241,9 +256,49 @@ export class WallosApi {
     await this.post<ApiResponse>('/api/users/set_budget.php', fields);
   }
 
-  async saveSubscription(input: Record<string, string | number | boolean | null | undefined>, id?: number): Promise<void> {
+  /** Logo warning is not fatal: Wallos commits the subscription even if image fetch fails. */
+  async saveSubscription(
+    input: Record<string, string | number | boolean | null | undefined>,
+    id?: number,
+    logoFile?: LogoUpload,
+  ): Promise<{ logoWarning: string | null }> {
+    if (logoFile && input.logo_url) throw new Error('不能同时上传图片与设置网络图标');
+    if (input.logo_url && !safeLogoSource(input.logo_url)) throw new Error('图标 URL 必须是有效的 HTTPS 图片地址');
     const fields = id ? { ...input, action: 'edit', id } : { ...input, action: 'add' };
-    await this.post<ApiResponse>('/api/subscriptions/set_subscriptions.php', fields);
+    const result = await this.post<ApiResponse>('/api/subscriptions/set_subscriptions.php', fields, logoFile);
+    return { logoWarning: typeof result.logo_warning === 'string' && result.logo_warning.trim() ?
+      result.logo_warning.slice(0, 180) : null };
+  }
+
+  /** Reuses the actual Wallos 5.8.1 search endpoints, including its Brave fallback. */
+  async searchLogos(term: string, source: LogoSearchSource): Promise<LogoSearchResult[]> {
+    const { baseUrl, accessClientId, accessClientSecret } = this.credentials();
+    const base = safeHttpsUrl(baseUrl);
+    if (!base) throw new Error('Wallos 地址无效');
+    if (Boolean(accessClientId) !== Boolean(accessClientSecret)) {
+      throw new Error('Cloudflare Access Service Token 需要同时配置 Client ID 和 Client Secret');
+    }
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (accessClientId && accessClientSecret) {
+      headers['CF-Access-Client-Id'] = accessClientId;
+      headers['CF-Access-Client-Secret'] = accessClientSecret;
+    }
+    let reply: RequestUrlResponse;
+    try {
+      reply = await this.transport({
+        url: base + logoSearchPath(source, term),
+        method: 'GET', headers, throw: false,
+      });
+    } catch {
+      throw new Error('图标搜索网络连接失败，请重试或直接填写图片 URL');
+    }
+    if (reply.status < 200 || reply.status >= 300) {
+      throw new Error('图标搜索服务 HTTP ' + reply.status);
+    }
+    let json: unknown;
+    try { json = JSON.parse(reply.text); }
+    catch { throw new Error('图标搜索返回了非 JSON 内容，请检查 Cloudflare Access'); }
+    return parseLogoSearchResponse(json, source);
   }
 
   async deleteSubscription(id: number): Promise<void> {

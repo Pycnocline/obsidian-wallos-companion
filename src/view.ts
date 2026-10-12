@@ -3,6 +3,10 @@ import type WallosCompanionPlugin from './main';
 import { scheduleRefreshAfterLayout } from './workspace';
 import { DeleteConfirmationModal, SubscriptionModal } from './modals';
 import { FinanceSettingsModal, ResourceManagerModal } from './management';
+import { OverviewSettingsModal } from './overview-settings';
+import { normalizeOverviewCards, overviewCardContent, overviewValues } from './overview';
+import { calendarGrid } from './calendar-grid';
+import { wallosLogoUrl } from './logo';
 import type { AdvancedFilters, CalendarOccurrence, DashboardData, MonthlyCost, Subscription, ViewFilter } from './model';
 import {
   averageMonthlyCost, calendarOccurrences, currencyDisplay, dayDifference, dueLabel,
@@ -232,30 +236,36 @@ export class WallosView extends ItemView {
   }
   private renderSummary(surface: HTMLElement): void {
     const data = this.data!;
-    const active = data.subscriptions.filter(s => Number(s.inactive) !== 1);
-    const due7 = active.filter(s => { const days = dayDifference(s.next_payment); return days !== null && days >= 0 && days <= 7; }).length;
-    const averages = averageMonthlyCost(active, data.currencies, data.mainCurrencyId, this.canConvert());
     const summaryHeader = surface.createDiv({ cls: 'wallos-summary-heading' });
     summaryHeader.createSpan({ text: '财务概览', cls: 'wallos-section-kicker' });
-    summaryHeader.createSpan({
+    const actions = summaryHeader.createDiv({ cls: 'wallos-summary-actions' });
+    actions.createSpan({
       text: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' }),
       cls: 'wallos-summary-period',
     });
-    const metric = surface.createDiv({ cls: 'wallos-metrics wallos-metrics-wide' });
-    const avgLabel = averages.convertedTotal === null ? averages.byCurrency.map(c => money(c.amount, c.code)).join(' / ') : money(averages.convertedTotal, averages.convertedCode || '—');
-    this.metric(metric, '平均每月成本', avgLabel || '—',
-      averages.byCurrency.length > 1 ? (averages.convertedTotal !== null ? '按 Wallos 汇率估算' : '多币种分别计算') : '已按订阅周期分摊', 'wallet');
-    this.metric(metric, '本月预计支出', data.monthly?.localized_monthly_cost || '—', '计划续费金额', 'calendar-days');
-    this.metric(metric, '活跃订阅', String(active.length), '正在使用的服务', 'layers');
-    this.metric(metric, '未来 7 天续费', String(due7), '近期付款项目', 'clock-3');
+    actionButton(actions, 'sliders-horizontal', '自定义卡片',
+      () => new OverviewSettingsModal(this.app, this.plugin).open(), 'wallos-summary-edit');
+
+    const metrics = surface.createDiv({ cls: 'wallos-metrics wallos-metrics-wide' });
+    const values = overviewValues(data, this.canConvert());
+    const cards = normalizeOverviewCards(this.plugin.settings.overviewCards).filter(card => card.visible);
+    if (!cards.length) {
+      metrics.createEl('p', { cls: 'wallos-empty wallos-summary-empty', text: '已隐藏全部概览卡片。点击「自定义卡片」重新添加。' });
+    }
+    for (const cardConfig of cards) {
+      const { title, value, note, tooltip, icon } = overviewCardContent(cardConfig, values);
+      const card = this.metric(metrics, title, value, note, icon);
+      if (tooltip) card.setAttribute('title', tooltip);
+    }
   }
-  private metric(container: HTMLElement, label: string, value: string, desc: string, icon?: string): void {
+  private metric(container: HTMLElement, label: string, value: string, desc: string, icon?: string): HTMLElement {
     const card = container.createDiv({ cls: 'wallos-metric' });
     const heading = card.createDiv({ cls: 'wallos-metric-heading' });
     heading.createSpan({ cls: 'wallos-metric-label', text: label });
     if (icon) setIcon(heading.createSpan({ cls: 'wallos-metric-icon' }), icon);
     card.createDiv({ cls: 'wallos-metric-value', text: value });
-    card.createDiv({ cls: 'wallos-metric-foot', text: desc });
+    if (desc) card.createDiv({ cls: 'wallos-metric-foot', text: desc });
+    return card;
   }
   private renderSubscriptionsPanel(surface: HTMLElement): void {
     const data = this.data!;
@@ -308,7 +318,15 @@ export class WallosView extends ItemView {
   private renderSubscription(container: HTMLElement, sub: Subscription): void {
     const card = container.createDiv({ cls: 'wallos-subscription' + (Number(sub.inactive) === 1 ? ' is-inactive' : '') });
     const identity = card.createDiv({ cls: 'wallos-subscription-identity' });
-    identity.createDiv({ cls: 'wallos-avatar', text: sub.name.charAt(0).toUpperCase() || '?' }).setAttribute('aria-hidden', 'true');
+    const avatar = identity.createDiv({ cls: 'wallos-avatar', text: sub.name.charAt(0).toUpperCase() || '?' });
+    avatar.setAttribute('aria-hidden', 'true');
+    const logo = wallosLogoUrl(this.plugin.settings.baseUrl, sub.logo);
+    if (logo) {
+      const image = avatar.createEl('img', { cls: 'wallos-avatar-image', attr: {
+        src: logo, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer',
+      } });
+      image.addEventListener('error', () => image.remove());
+    }
     const detail = identity.createDiv({ cls: 'wallos-subscription-detail' });
     detail.createEl('h3', { text: sub.name });
     const subMeta = detail.createDiv({ cls: 'wallos-subscription-meta' });
@@ -340,46 +358,83 @@ export class WallosView extends ItemView {
     bar.createEl('h3', { text: String(this.monthYear) + ' 年 ' + String(this.monthNumber) + ' 月' });
     iconButton(bar, 'chevron-right', '下个月', () => this.changeMonth(1));
     actionButton(bar, 'calendar-check', '本月', () => {
-      const d = new Date(); this.monthYear=d.getFullYear();this.monthNumber=d.getMonth()+1;this.selectedDay=null;
-      this.render();void this.loadCalendarMonthCost();
+      const now = new Date();
+      this.monthYear = now.getFullYear(); this.monthNumber = now.getMonth() + 1; this.selectedDay = null;
+      this.render();
+      void this.loadCalendarMonthCost();
     });
     const key = monthKey(this.monthYear, this.monthNumber);
-    const currentCost = this.monthCosts.get(key);
-    surface.createEl('p', { cls: 'wallos-calendar-summary', text: currentCost ?
-      'Wallos 预计本月支出：' + currentCost.localized_monthly_cost : '续费事件为计划日期，金额按原币种列示。' });
+    const cost = this.monthCosts.get(key);
+    surface.createEl('p', { cls: 'wallos-calendar-summary', text: cost ?
+      'Wallos 预计本月支出：' + cost.localized_monthly_cost :
+      '续费日期为预测，金额按 Wallos 数据列示。' });
+
     const weekStartSunday = Number(data.preferences?.week_starts_sunday) === 1;
-    const headers = weekStartSunday ? ['日','一','二','三','四','五','六'] : ['一','二','三','四','五','六','日'];
-    const grid = surface.createDiv({ cls: 'wallos-calendar-grid', attr: { role: 'grid', 'aria-label': key + ' 续费日历' } });
-    headers.forEach(text => grid.createDiv({ cls:'wallos-calendar-weekday',text }));
-    const first = new Date(Date.UTC(this.monthYear,this.monthNumber-1,1)).getUTCDay();
-    const offset = weekStartSunday ? first : (first+6)%7;
-    for(let pad=0;pad<offset;pad++)grid.createDiv({cls:'wallos-calendar-blank'});
-    const maxDay=new Date(Date.UTC(this.monthYear,this.monthNumber,0)).getUTCDate();
-    const occ=calendarOccurrences(data.subscriptions,this.monthYear,this.monthNumber);
-    const byDay=new Map<string,CalendarOccurrence[]>();
-    occ.forEach(row=>byDay.set(row.date,[...(byDay.get(row.date)||[]),row]));
-    for(let d=1;d<=maxDay;d++){
-      const day=key+'-'+String(d).padStart(2,'0');
-      const entries=byDay.get(day)||[];
-      const button=grid.createEl('button',{cls:'wallos-calendar-day'+(day===todayYmd()?' is-today':'')+(day===this.selectedDay?' is-selected':''),
-        attr:{type:'button','aria-label':day+' · '+entries.length+' 项续费','aria-pressed':String(day===this.selectedDay)}});
-      button.createSpan({cls:'wallos-calendar-daynum',text:String(d)});
-      if(entries.length){
-        button.createSpan({cls:'wallos-calendar-dots',text:String(entries.length)+' 项'});
-        button.createSpan({cls:'wallos-calendar-eventname',text:entries.slice(0,2).map(x=>x.subscription.name).join('、')});
-      }
-      button.addEventListener('click',()=>{this.selectedDay=day;this.render();});
+    const weekdays = weekStartSunday ? ['日', '一', '二', '三', '四', '五', '六'] : ['一', '二', '三', '四', '五', '六', '日'];
+    const occurrences = calendarOccurrences(data.subscriptions, this.monthYear, this.monthNumber);
+    const byDay = new Map<string, CalendarOccurrence[]>();
+    for (const occurrence of occurrences) {
+      const entries = byDay.get(occurrence.date) || [];
+      entries.push(occurrence);
+      byDay.set(occurrence.date, entries);
     }
-    surface.createEl('p',{cls:'wallos-footnote',text:'日历仅预测下一次续费及自动续订计划，不表示实际扣款。关闭自动续订的项目仅显示下一次。'});
-    const eventList=surface.createDiv({cls:'wallos-calendar-events'});
-    const selected=this.selectedDay ? byDay.get(this.selectedDay)||[] : occ;
-    eventList.createEl('h3',{text:this.selectedDay ? this.selectedDay+' · '+selected.length+' 项' : '本月续费 · '+occ.length+' 次'});
-    if(!selected.length)eventList.createEl('p',{text:'此日期暂无预计续费'});
-    for(const {date,subscription} of selected){
-      const row=eventList.createDiv({cls:'wallos-calendar-event'});
-      row.createSpan({text:date.slice(-2)+' 日 · '+subscription.name});
-      row.createSpan({text:currencyDisplay(subscription,data.currencies)});
-      iconButton(row,'pencil','编辑 '+subscription.name,()=>this.openEditor(subscription));
+
+    const calendar = surface.createDiv({
+      cls: 'wallos-calendar-month', attr: { 'aria-label': key + ' 续费日历' },
+    });
+    const grid = calendar.createDiv({ cls: 'wallos-calendar-grid' });
+    for (const day of weekdays) {
+      grid.createSpan({ cls: 'wallos-calendar-weekday', text: day });
+    }
+    for (const cell of calendarGrid(this.monthYear, this.monthNumber, weekStartSunday)) {
+      const entries = cell.inMonth ? byDay.get(cell.date) || [] : [];
+      const classes = ['wallos-calendar-cell'];
+      if (!cell.inMonth) classes.push('is-outside');
+      if (cell.date === todayYmd()) classes.push('is-today');
+      if (cell.date === this.selectedDay) classes.push('is-selected');
+      if (entries.length) classes.push('has-events');
+      const holder = grid.createDiv({ cls: classes.join(' ') });
+      if (cell.inMonth) {
+        const select = holder.createEl('button', { cls: 'wallos-calendar-date', text: String(cell.day),
+          attr: { type: 'button', 'aria-label': cell.date + ' · ' + entries.length + ' 项续费',
+            'aria-pressed': String(this.selectedDay === cell.date) },
+        });
+        // Keep the day clickable with keyboard while the surrounding cell
+        // visually remains a calendar table cell rather than a button.
+        const chooseDate = () => { this.selectedDay = this.selectedDay === cell.date ? null : cell.date; this.render(); };
+        select.addEventListener('click', chooseDate);
+        holder.addEventListener('click', event => { if (event.target !== select && !select.contains(event.target as Node)) chooseDate(); });
+      } else {
+        holder.createSpan({ cls: 'wallos-calendar-date wallos-calendar-outside-date', text: String(cell.day) });
+      }
+      if (entries.length) {
+        const small = holder.createDiv({ cls: 'wallos-calendar-day-events' });
+        for (const { subscription } of entries.slice(0, 2)) {
+          small.createSpan({ cls: 'wallos-calendar-day-event', text: subscription.name,
+            attr: { title: subscription.name } });
+        }
+        if (entries.length > 2) small.createSpan({
+          cls: 'wallos-calendar-more', text: '+' + (entries.length - 2),
+        });
+        holder.createSpan({ cls: 'wallos-calendar-day-count', text: entries.length + ' 项续费' });
+      }
+    }
+    surface.createEl('p', { cls: 'wallos-footnote',
+      text: '日历预测下一次续费与自动续订计划，不表示实际扣款。单次订阅只显示下一次。' });
+
+    const eventList = surface.createDiv({ cls: 'wallos-calendar-events' });
+    const selected = this.selectedDay ? byDay.get(this.selectedDay) || [] : occurrences;
+    const heading = eventList.createDiv({ cls: 'wallos-calendar-event-heading' });
+    heading.createEl('h3', { text: this.selectedDay ?
+      this.selectedDay + ' · ' + selected.length + ' 项' : '本月续费 · ' + occurrences.length + ' 次' });
+    if (this.selectedDay) actionButton(heading, 'list', '查看整月', () => { this.selectedDay = null; this.render(); });
+    if (!selected.length) eventList.createEl('p', { text: this.selectedDay ? '所选日期没有预计续费' : '本月没有预计续费' });
+    for (const { date, subscription } of selected) {
+      const row = eventList.createDiv({ cls: 'wallos-calendar-event' });
+      const summary = row.createSpan({ cls: 'wallos-calendar-event-title', text: date.slice(-2) + ' 日 · ' + subscription.name });
+      summary.title = subscription.name;
+      row.createSpan({ cls: 'wallos-calendar-event-price', text: currencyDisplay(subscription, data.currencies) });
+      iconButton(row, 'pencil', '编辑 ' + subscription.name, () => this.openEditor(subscription));
     }
   }
   private renderStatisticsPanel(surface: HTMLElement): void {

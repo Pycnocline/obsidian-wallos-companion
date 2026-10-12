@@ -1,6 +1,6 @@
 # Wallos 5.8.1 API 兼容性
 
-已对照正在运行的 bellamy/wallos:5.8.1 容器中的接口路径与参数。API 请求均通过 HTTPS 的 x-www-form-urlencoded POST 发送 API Key；不写入 URL。
+已对照正在运行的 bellamy/wallos:5.8.1 容器中的接口路径与参数。业务 API 在没有上传图标时通过 HTTPS 的 x-www-form-urlencoded POST 发送 API Key；上传图标时使用原生 multipart/form-data（API Key 作为 POST 字段）；密钥不放在 URL。用于搜索图标的 Wallos 公共 GET 端点不携带 Wallos API Key。
 
 | 业务 | PHP API | 操作 |
 | --- | --- | --- |
@@ -14,8 +14,12 @@
 | 预算 | users/get_user.php、set_budget.php、subscriptions/get_period_budget.php | 读写 |
 | 通知 | notifications/get_notification_settings.php | 只显示 enabled |
 | 登录 | /obsidian-pair.php | 需额外挂载配对桥接 |
+| 图标搜索 | /endpoints/logos/icon_search.php、/endpoints/logos/search.php | GET，分别查询 selfhst/dashboardicons 和 brave/duckduckgo，不携带 Wallos API Key |
+| 图标保存 | /api/subscriptions/set_subscriptions.php | POST logo_url 或 multipart 文件字段 logo |
 
-所有上述业务 API 均在 Wallos 的 /api/ 路径下（配对桥接例外）。
+除配对桥接和图标搜索这两个例外，业务 API 均在 Wallos 的 /api/ 路径下。
+
+Wallos 的 get_subscriptions.php 返回 logo 文件名，插件只允许合法图片文件名，并构建 images/uploads/logos 下的图片地址。原生 set_subscriptions.php 对图片保存失败会返回 success:true + logo_warning，此时订阅的其他字段已经提交，但不能声称图标也已保存。服务器具备内网与私网地址拒绝逻辑，插件只接收 HTTP/HTTPS 网络地址。公开 API 不支持独立删除原有图标，不能把空 URL 视为删除操作。
 
 ## 日历与金额含义
 
@@ -25,6 +29,8 @@
 - 月均成本按日 365.2425 天/年、周 365.2425/7 周/年、月、年来分摊周期费用。
 - 多币种金额仅在具备可用汇率时换算到主币，否则独立按币种显示，不合并数额。
 - 最近六个月的预计支出从 Wallos 逐月读取，不创建第二个数据库。
+- 自定义财务概览指标由已有订阅、预算、当前月费用字段派生；排序、文本模板、提示和可见性仅保存在非敏感插件配置中。
+- 月历按连续周表格生成日期格，包含当月末尾日及前后月占位；周起始日跟随 Wallos 偏好。
 
 ## 约束和隐私
 

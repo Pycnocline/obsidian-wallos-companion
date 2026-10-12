@@ -7,7 +7,7 @@
     npm run test
     npm run build
 
-也可以运行 npm run check。测试覆盖日期与周期、闰年/月末、筛选、币种和均值、API 参数/错误与配对流程。通过自动化不等于真实手机浏览器 OIDC 已验收。
+也可以运行 npm run check。测试覆盖日期与周期、闰年/月末、筛选、币种和均值、API 参数/错误、图标搜索/上传协议、财务概览自定义与登录配对流程。通过自动化不等于真实手机浏览器 OIDC 已验收。
 
 ## 发布
 
@@ -26,4 +26,4 @@
 - src/workspace.ts 负责创建独立右侧叶子，并将首次 API 读取延后到 workspace.onLayoutReady + requestIdleCallback。旧设备无 requestIdleCallback 时退化为可取消的短延时。
 - tests/workspace.test.ts 模拟已有 Notebook Navigator 视图，保证其 setViewState 不会被 Wallos 调用；还覆盖关闭视图、移动端、新旧调度器。
 - tests/style-isolation.test.ts 验证 CSS 未重写文件树/工作区全局选择器；styles.css 使用 @container wallos-pane 使响应式以插件面板宽度而非桌面窗口宽度判断。
-- Chromium 测试夹具使用无生产数据的模拟订阅；已经在 345 px 侧栏和 880 px 宽视图中检查列数、横向溢出与标签换行。此类夹具不构成真实 Obsidian + Notebook Navigator 同时运行的实机验收。
+- Chromium 测试夹具使用无生产数据的模拟订阅；已在 280、320、375、530、790、1060 px 六种宽度的 Chromium 浏览器中执行测试（四个真实 WallosView 页面 + 财务卡片/图标弹窗），校验 2026 年 10 月 31 日存在、超长文本不出现水平溢出、卡片排序与动态变量、在线选图与保留现有图标的交互。浏览器测试夹具保留在临时目录，避免将产生的截图、测试产物提交到 Git。此类夹具不构成真实 Obsidian + Notebook Navigator 同时运行的实机验收。

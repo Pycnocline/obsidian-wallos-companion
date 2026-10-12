@@ -2,6 +2,7 @@ import { App, Modal, Notice, setIcon } from 'obsidian';
 import type WallosCompanionPlugin from './main';
 import type { DashboardData, NamedOption, Subscription, Currency } from './model';
 import { todayYmd, validYmd, validateSubscriptionForm } from './model';
+import { IconPicker } from './icon-picker';
 
 function textField(parent: HTMLElement, labelText: string, value: string, type = 'text', required = false): HTMLInputElement {
   const wrapper = parent.createDiv({ cls: 'wallos-field' });
@@ -53,6 +54,7 @@ function checkField(parent: HTMLElement, labelText: string, checked: boolean): H
 
 export class SubscriptionModal extends Modal {
   private sending = false;
+  private iconPicker: IconPicker | null = null;
 
   constructor(
     app: App,
@@ -100,8 +102,7 @@ export class SubscriptionModal extends Modal {
     const paymentMethod = selectField(fields, '支付方式', namedOptions(this.data.paymentMethods, true), String(current?.payment_method_id ?? ''));
     const payer = selectField(fields, '付款人', namedOptions(this.data.household, true), String(current?.payer_user_id ?? ''));
     const url = textField(fields, '订阅网页（可选）', current?.url ?? '', 'url');
-    const logo = textField(fields, '图标来源 URL（可选）', '', 'url');
-    logo.placeholder = 'https://example.com/logo.png';
+    this.iconPicker = new IconPicker(fields, this.plugin, current, () => name.value);
     const replacement = selectField(fields, '停用后替代订阅（可选）', [
       { value: '', label: '未设置' },
       ...this.data.subscriptions.filter(s => s.id !== current?.id).map(s => ({value: String(s.id), label: s.name})),
@@ -149,16 +150,23 @@ export class SubscriptionModal extends Modal {
         message.setText('取消日期无效');
         return;
       }
-      if (url.value.trim() || logo.value.trim()) {
+      if (url.value.trim()) {
         try {
-          for (const raw of [url.value.trim(), logo.value.trim()].filter(Boolean)) {
-            const parsedUrl = new URL(raw);
-            if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
-          }
+          const parsedUrl = new URL(url.value.trim());
+          if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error();
         } catch {
-          message.setText('订阅网页和图标来源必须为 HTTP 或 HTTPS 地址');
+          message.setText('订阅网页必须为 HTTP 或 HTTPS 地址');
           return;
         }
+      }
+      let logoUrl: string | null;
+      let logoFile: ReturnType<IconPicker['getFile']>;
+      try {
+        logoUrl = this.iconPicker?.getRemoteUrl() ?? null;
+        logoFile = this.iconPicker?.getFile();
+      } catch (error) {
+        message.setText(error instanceof Error ? error.message : '图标来源无效');
+        return;
       }
       const payload: Record<string, string | number | null | undefined> = {
         name: name.value.trim(),
@@ -170,7 +178,7 @@ export class SubscriptionModal extends Modal {
         start_date: startDate.value,
         cancellation_date: cancellationDate.value,
         replacement_subscription_id: inactive.checked ? replacement.value : '',
-        ...(logo.value.trim() ? { logo_url: logo.value.trim() } : {}),
+        ...(logoUrl ? { logo_url: logoUrl } : {}),
         category_id: category.value || (editing ? '' : undefined),
         payment_method_id: paymentMethod.value || (editing ? '' : undefined),
         payer_user_id: payer.value || (editing ? '' : undefined),
@@ -187,9 +195,10 @@ export class SubscriptionModal extends Modal {
       message.setText('正在保存到 Wallos…');
       void (async () => {
         try {
-          await this.plugin.api.saveSubscription(payload, current?.id);
+          const result = await this.plugin.api.saveSubscription(payload, current?.id, logoFile);
           this.close();
-          new Notice(editing ? 'Wallos 订阅已修改' : 'Wallos 订阅已创建');
+          new Notice(result.logoWarning ? '订阅已保存，但图标未成功处理：' + result.logoWarning :
+            (editing ? 'Wallos 订阅已修改' : 'Wallos 订阅已创建'));
           await this.saved();
         } catch (error) {
           message.setText(error instanceof Error ? error.message : '保存或刷新失败');
@@ -200,6 +209,11 @@ export class SubscriptionModal extends Modal {
         }
       })();
     });
+  }
+
+  onClose(): void {
+    this.iconPicker?.dispose();
+    this.iconPicker = null;
   }
 }
 

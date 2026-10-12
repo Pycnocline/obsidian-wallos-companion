@@ -379,3 +379,282 @@
   .wallos-brand-mark { display: none; }
   .wallos-header-actions .wallos-icon-button { width: 30px; min-width: 30px; }
 }
+
+/* 0.3.4: functional calendar, subscription logos and constrained layout.
+   Keep these rules scoped to Wallos; never affect another Obsidian plugin. */
+.wallos-root .wallos-surface,
+.wallos-root .wallos-page,
+.wallos-root .wallos-list,
+.wallos-dialog .modal-content {
+  min-width: 0;
+  max-width: 100%;
+}
+.wallos-root .wallos-button,
+.wallos-dialog .wallos-button,
+.wallos-root .wallos-filter {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-align: center;
+}
+.wallos-root .wallos-button > span:not(.wallos-button-icon),
+.wallos-dialog .wallos-button > span:not(.wallos-button-icon),
+.wallos-root .wallos-metric-foot,
+.wallos-root .wallos-metric-label,
+.wallos-root .wallos-calendar-event-title,
+.wallos-root .wallos-stat-category > span,
+.wallos-dialog .wallos-field,
+.wallos-dialog .wallos-card-setting {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wallos-root .wallos-button-icon { flex: 0 0 auto; }
+.wallos-root .wallos-page-tabs .wallos-button { flex: 1 1 0; }
+.wallos-root .wallos-manager-links,
+.wallos-root .wallos-controls,
+.wallos-root .wallos-calendar-bar,
+.wallos-root .wallos-summary-actions { min-width: 0; flex-wrap: wrap; }
+.wallos-root .wallos-manager-links .wallos-button { flex: 1 1 150px; }
+.wallos-root .wallos-advanced-filters .wallos-filter-field,
+.wallos-root .wallos-advanced-filters select,
+.wallos-dialog .wallos-input {
+  min-width: 0; max-width: 100%; width: 100%;
+}
+.wallos-root .wallos-manager-summary,
+.wallos-root .wallos-metrics-wide {
+  min-width: 0;
+}
+.wallos-root .wallos-subscription-detail,
+.wallos-root .wallos-subscription-payment {
+  overflow-wrap: anywhere;
+}
+.wallos-root .wallos-avatar { position: relative; overflow: hidden; }
+.wallos-root .wallos-avatar-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+  background: var(--background-secondary);
+}
+.wallos-root .wallos-summary-heading {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.wallos-root .wallos-summary-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wallos-root .wallos-summary-edit { min-height: 32px; padding: 5px 9px; font-size: .74rem; }
+.wallos-root .wallos-summary-edit .wallos-button-icon svg { width: 14px; height: 14px; }
+.wallos-root .wallos-summary-empty { grid-column: 1 / -1; margin: 0; }
+
+/* A continuous month sheet; only date circles are actual buttons. */
+.wallos-root .wallos-calendar-month {
+  margin-top: 12px;
+  min-width: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  overflow: hidden;
+  background: var(--background-primary);
+}
+.wallos-root .wallos-calendar-month .wallos-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+}
+.wallos-root .wallos-calendar-month .wallos-calendar-weekday {
+  padding: 8px 0;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: .72rem;
+  font-weight: 600;
+  text-align: center;
+}
+.wallos-root .wallos-calendar-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 104px;
+  padding: 6px 6px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-right: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  overflow: hidden;
+  cursor: pointer;
+}
+.wallos-root .wallos-calendar-cell:nth-child(7n) { border-right: none; }
+.wallos-root .wallos-calendar-cell.is-outside { background: var(--background-secondary); cursor: default; }
+.wallos-root .wallos-calendar-cell.is-outside .wallos-calendar-date { color: var(--text-faint); opacity: .55; }
+.wallos-root .wallos-calendar-cell.is-selected { background: var(--background-modifier-hover); box-shadow: inset 0 0 0 1px var(--interactive-accent); }
+.wallos-root .wallos-calendar-date {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px; height: 31px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: .78rem;
+  font-weight: 560;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.wallos-root button.wallos-calendar-date:hover { background: var(--background-modifier-hover); }
+.wallos-root .wallos-calendar-cell.is-today button.wallos-calendar-date {
+  background: var(--interactive-accent); color: var(--text-on-accent);
+}
+.wallos-root .wallos-calendar-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 4px;
+}
+.wallos-root .wallos-calendar-day-event {
+  display: block;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-accent);
+  background: var(--background-secondary);
+  font-size: .69rem;
+  line-height: 1.25;
+}
+.wallos-root .wallos-calendar-more {
+  font-size: .68rem;
+  line-height: 1.3;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+.wallos-root .wallos-calendar-day-count { display: none; }
+.wallos-root .wallos-calendar-event-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.wallos-root .wallos-calendar-event-heading h3 { margin: 8px 0; }
+.wallos-root .wallos-calendar-event-heading .wallos-button { padding: 6px 10px; min-height: 35px; }
+.wallos-root .wallos-calendar-event-title { flex: 1 1 130px; }
+.wallos-root .wallos-calendar-event-price { overflow-wrap: anywhere; min-width: 0; }
+
+/* Network and uploaded logos + responsive search result gallery. */
+.wallos-dialog .wallos-icon-picker {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 12px;
+}
+.wallos-dialog .wallos-icon-picker h4 { font-size: .91rem; margin: 5px 0 0; }
+.wallos-dialog .wallos-icon-help, .wallos-dialog .wallos-icon-hint {
+  margin: 0;
+  font-size: .75rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.wallos-dialog .wallos-logo-preview {
+  width: 76px; height: 76px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 13px;
+  background: var(--background-secondary);
+  display: flex; justify-content: center; align-items: center;
+  overflow: hidden;
+}
+.wallos-dialog .wallos-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.wallos-dialog .wallos-logo-preview-missing { font-size: .7rem; color: var(--text-faint); text-align: center; }
+.wallos-dialog .wallos-logo-keep { align-self: flex-start; }
+.wallos-dialog .wallos-icon-search {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+.wallos-dialog .wallos-icon-search .wallos-button { min-height: 42px; }
+.wallos-dialog .wallos-icon-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+  gap: 9px;
+  min-width: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.wallos-dialog .wallos-icon-result {
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9px;
+  background: var(--background-secondary);
+  cursor: pointer;
+}
+.wallos-dialog .wallos-icon-result.is-selected { border-color: var(--interactive-accent); box-shadow: inset 0 0 0 1px var(--interactive-accent); }
+.wallos-dialog .wallos-icon-result img { display: block; max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
+.wallos-dialog .wallos-file-input { padding-inline: 7px; }
+.wallos-dialog .wallos-file-input::file-selector-button { max-width: 50%; white-space: normal; overflow-wrap: anywhere; }
+
+/* Reorderable, editable finance overview cards. */
+.wallos-dialog.wallos-overview-editor { width: min(750px, calc(100vw - 24px)); }
+.wallos-dialog .wallos-card-settings { display: flex; flex-direction: column; gap: 14px; }
+.wallos-dialog .wallos-card-setting {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+}
+.wallos-dialog .wallos-card-setting-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 0;
+}
+.wallos-dialog .wallos-card-setting-head strong { min-width: 0; overflow-wrap: anywhere; }
+.wallos-dialog .wallos-card-setting-actions { display: flex; gap: 2px; }
+.wallos-dialog .wallos-card-setting-actions .wallos-icon-button { min-width: 37px; width: 37px; min-height: 37px; }
+.wallos-dialog .wallos-card-setting-field { display: flex; flex-direction: column; min-width: 0; gap: 5px; font-size: .76rem; color: var(--text-muted); }
+.wallos-dialog .wallos-card-setting-field:nth-of-type(3),
+.wallos-dialog .wallos-card-setting-field:nth-of-type(5) { grid-column: 1 / -1; }
+.wallos-dialog .wallos-card-setting-switches {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+}
+.wallos-dialog .wallos-card-editor-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+@container wallos-pane (max-width: 620px) {
+  .wallos-root .wallos-calendar-cell { min-height: 68px; padding: 4px 2px; }
+  .wallos-root .wallos-calendar-date { width: 27px; height: 27px; font-size: .72rem; margin-inline: auto; }
+  .wallos-root .wallos-calendar-day-events { display: none; }
+  .wallos-root .wallos-calendar-day-count {
+    display: block; text-align: center; font-size: .58rem;
+    color: var(--text-accent); line-height: 1.2; overflow-wrap: anywhere;
+  }
+}
+@container wallos-pane (max-width: 390px) {
+  .wallos-root .wallos-calendar-month .wallos-calendar-grid { gap: 0; }
+  .wallos-root .wallos-calendar-cell { min-height: 56px; }
+  .wallos-root .wallos-calendar-day-count { font-size: .54rem; }
+  .wallos-root .wallos-subscription-payment { min-width: 0; }
+  .wallos-root .wallos-subscription-actions .wallos-icon-button { width: 34px; min-width: 34px; }
+  .wallos-root .wallos-summary-actions { justify-content: flex-start; }
+}
+@media (max-width: 550px) {
+  .wallos-dialog .wallos-icon-search { grid-template-columns: minmax(0,1fr) minmax(115px, .8fr); }
+  .wallos-dialog .wallos-icon-search .wallos-button { grid-column: 1 / -1; }
+  .wallos-dialog .wallos-card-setting { grid-template-columns: minmax(0,1fr); }
+  .wallos-dialog .wallos-card-setting-field { grid-column: 1 / -1; }
+  .wallos-dialog .wallos-card-editor-actions .wallos-button { flex: 1 1 115px; }
+}

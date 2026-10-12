@@ -183,3 +183,64 @@ describe('notification secret redaction', () => {
     expect(JSON.stringify(result)).not.toContain('DO_NOT_LEAK');
   });
 });
+
+describe('Wallos native icon search and upload API', () => {
+  it('searches existing Wallos Brave and icon collections over GET without leaking credentials', async () => {
+    const transport = vi.fn(async (request: RequestUrlParam) => {
+      return mockReply({ results: [
+        { image: 'https://imgs.search.brave.com/picture.png', thumbnail: 'https://imgs.search.brave.com/preview.png' },
+      ] });
+    });
+    const api = new WallosApi(cred, transport);
+    const logos = await api.searchLogos('Netflix', 'brave');
+    expect(logos).toHaveLength(1);
+    const first = transport.mock.calls[0][0];
+    expect(first.method).toBe('GET');
+    expect(first.url).toContain('/endpoints/logos/search.php?search=Netflix&source=brave');
+    expect(first.url).not.toContain('not-a-real-secret');
+    expect(JSON.stringify(first)).not.toContain('not-a-real-secret');
+
+    await api.searchLogos('Plex', 'dashboardicons');
+    expect(transport.mock.calls[1][0].url).toContain('/endpoints/logos/icon_search.php');
+  });
+
+  it('allows CF Access service headers when icon searching but does not send Wallos API key', async () => {
+    const transport = vi.fn(async (_request: RequestUrlParam) => mockReply({ results: [] }));
+    const api = new WallosApi(
+      () => ({ ...cred(), accessClientId: 'access-id', accessClientSecret: 'access-secret' }), transport,
+    );
+    await api.searchLogos('nextcloud', 'selfhst');
+    const headers = transport.mock.calls[0][0];
+    expect(headers).toHaveProperty('headers.CF-Access-Client-Id', 'access-id');
+    expect(headers).toHaveProperty('headers.CF-Access-Client-Secret', 'access-secret');
+    expect(JSON.stringify(headers)).not.toContain('not-a-real-secret');
+  });
+
+  it('reports icon warnings without hiding successful subscription writes', async () => {
+    const transport = vi.fn(async (_request: RequestUrlParam) => mockReply({
+      success: true, title: 'Subscription updated', logo_warning: 'Failed to fetch image.',
+    }));
+    const api = new WallosApi(cred, transport);
+    const outcome = await api.saveSubscription({ name: 'SomeService', logo_url: 'https://cdn.example.com/icon.png' }, 24);
+    expect(outcome.logoWarning).toBe('Failed to fetch image.');
+    const req = transport.mock.calls[0][0];
+    expect(new URLSearchParams(String(req.body)).get('logo_url')).toBe('https://cdn.example.com/icon.png');
+    expect(new URLSearchParams(String(req.body)).get('id')).toBe('24');
+  });
+
+  it('uploads via real multipart body with binary bytes and refuses conflicting remote URL', async () => {
+    const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 73, 72, 68, 82]);
+    const file = { name: 'logo.png', type: 'image/png', size: png.length, arrayBuffer: async () => png.buffer as ArrayBuffer };
+    const transport = vi.fn(async (_request: RequestUrlParam) => mockReply({ success: true }));
+    const api = new WallosApi(cred, transport);
+    expect(await api.saveSubscription({ name: 'Test' }, 12, file)).toEqual({ logoWarning: null });
+    const req = transport.mock.calls[0][0];
+    expect(req.method).toBe('POST');
+    expect(String(req.headers?.['Content-Type'])).toContain('multipart/form-data; boundary=');
+    expect(req.body).toBeInstanceOf(ArrayBuffer);
+    expect(new TextDecoder().decode(new Uint8Array(req.body as ArrayBuffer))).toContain('name="logo"; filename="wallos-logo.png"');
+    await expect(api.saveSubscription({ name: 'Test', logo_url: 'https://example.com/logo.png' }, 12, file))
+      .rejects.toThrow('不能同时');
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+});

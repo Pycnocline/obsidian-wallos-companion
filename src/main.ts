@@ -5,6 +5,7 @@ import { PairingClient, randomVerifier } from './pairing';
 import { safeHttpsUrl } from './model';
 import { DEFAULT_SETTINGS, WallosPluginSettings, WallosSettingTab } from './settings';
 import { VIEW_TYPE_WALLOS, WallosView } from './view';
+import { normalizeOverviewCards } from './overview';
 import { revealWallosLeaf } from './workspace';
 
 export default class WallosCompanionPlugin extends Plugin {
@@ -17,7 +18,8 @@ export default class WallosCompanionPlugin extends Plugin {
   async onload(): Promise<void> {
     const saved = await this.loadData() as (Partial<WallosPluginSettings> & Partial<CredentialRefs>) | null;
     // Synced settings must never own the local SecretStorage references.
-    this.settings = { ...DEFAULT_SETTINGS, ...omitCredentialsFromSettings(saved ?? {}) };
+    this.settings = { ...DEFAULT_SETTINGS, ...omitCredentialsFromSettings(saved ?? {}),
+      overviewCards: normalizeOverviewCards(saved?.overviewCards) };
     this.credentials = loadLocalCredentials(this.app, this.app.secretStorage, saved ?? {});
     // Remove secret IDs from older versions' data.json after local migration.
     if (saved && ['apiKeySecretId', 'accessClientIdSecretId', 'accessClientSecretSecretId']
