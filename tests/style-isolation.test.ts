@@ -12,4 +12,14 @@ describe('Wallos stylesheet isolation', () => {
     expect(css).toContain('@container wallos-pane (max-width: 790px)');
     expect(css).toContain('@container wallos-pane (max-width: 390px)');
   });
+  it('keeps the redesigned native ledger theme-aware and plugin-scoped', () => {
+    const marker = '/* v0.3.5 | Native Obsidian ledger layout.';
+    expect(css).toContain(marker);
+    const layer = css.slice(css.indexOf(marker));
+    expect(layer).toContain('var(--background-primary)');
+    expect(layer).toContain('var(--interactive-accent)');
+    expect(layer).toContain('@container wallos-pane (max-width: 480px)');
+    expect(layer).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(layer).not.toMatch(/(^|[,{])\s*(?:html|body|\.workspace|\.view-content)\b/m);
+  });
 });

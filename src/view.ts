@@ -159,13 +159,14 @@ export class WallosView extends ItemView {
     const container = this.contentEl;
     container.empty();
     container.addClass('wallos-root');
-    const surface = container.createDiv({ cls: 'wallos-surface' });
+    const surface = container.createDiv({ cls: 'wallos-surface wallos-screen-' + this.panel });
     const header = surface.createDiv({ cls: 'wallos-header' });
     const brand = header.createDiv({ cls: 'wallos-brand' });
     setIcon(brand.createSpan({ cls: 'wallos-brand-mark' }), 'wallet-cards');
     const title = brand.createDiv({ cls: 'wallos-header-name' });
-    title.createEl('h2', { text: 'Wallos' });
-    title.createEl('p', { text: 'Companion · 订阅管理' });
+    title.createSpan({ cls: 'wallos-eyebrow', text: 'WALLOS / SUBSCRIPTION LEDGER' });
+    title.createEl('h2', { text: '订阅账本' });
+    title.createEl('p', { text: '集中管理续费、预算与订阅服务' });
     const actions = header.createDiv({ cls: 'wallos-header-actions' });
     const refreshButton = iconButton(actions, 'refresh-cw', '刷新数据', () => { void this.refresh(); });
     refreshButton.disabled = this.loading;
@@ -195,7 +196,7 @@ export class WallosView extends ItemView {
       return;
     }
 
-    const syncLine = surface.createDiv({ cls: 'wallos-sync-line' });
+    const syncLine = title.createDiv({ cls: 'wallos-sync-line', attr: { role: 'status', 'aria-live': 'polite' } });
     syncLine.createSpan({ cls: 'wallos-sync-dot' + (this.refreshError ? ' has-error' : '') });
     syncLine.createSpan({ text: this.lastSynced ?
       '已同步 · ' + this.lastSynced.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) + (this.loading ? ' · 更新中' : '') : '等待首次同步' });

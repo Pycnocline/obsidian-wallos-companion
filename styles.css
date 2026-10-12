@@ -658,3 +658,378 @@
   .wallos-dialog .wallos-card-setting-field { grid-column: 1 / -1; }
   .wallos-dialog .wallos-card-editor-actions .wallos-button { flex: 1 1 115px; }
 }
+
+/* v0.3.5 | Native Obsidian ledger layout.
+   Never style the host workspace: all rules remain in the plugin root/dialog.
+   All surfaces, accents, borders, fonts and focus colors come from the theme. */
+.wallos-root {
+  --wallos-line: var(--background-modifier-border);
+  --wallos-soft: var(--background-secondary);
+  --wallos-hover: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  background: var(--background-primary);
+}
+.wallos-root .wallos-surface {
+  max-width: 1160px;
+  padding: clamp(18px, 3cqi, 38px) clamp(16px, 3.7cqi, 52px) calc(48px + env(safe-area-inset-bottom, 0px));
+}
+.wallos-root .wallos-header {
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--wallos-line);
+}
+.wallos-root .wallos-brand { align-items: flex-start; gap: 16px; }
+.wallos-root .wallos-brand-mark {
+  background: var(--background-secondary);
+  border-color: var(--wallos-line);
+  color: var(--text-accent);
+  border-radius: var(--radius-s);
+  flex-basis: 42px;
+  width: 42px;
+  height: 42px;
+  margin-top: 6px;
+}
+.wallos-root .wallos-header-name { min-width: 0; }
+.wallos-root .wallos-eyebrow {
+  display: block;
+  color: var(--text-muted);
+  font-size: .66rem;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: .105em;
+  margin-bottom: 7px;
+}
+.wallos-root .wallos-header h2 {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: clamp(1.8rem, 3.9cqi, 2.65rem);
+  font-weight: 720;
+  line-height: 1.12;
+  letter-spacing: -.045em;
+}
+.wallos-root .wallos-header-name p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: .79rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.wallos-root .wallos-header-actions { gap: 5px; }
+.wallos-root .wallos-header-actions .wallos-icon-button {
+  flex-shrink: 0;
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--wallos-line);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  background: transparent;
+}
+.wallos-root .wallos-header-actions .wallos-icon-button:hover {
+  color: var(--text-normal);
+  background: var(--wallos-hover);
+  border-color: var(--background-modifier-border-hover, var(--wallos-line));
+}
+.wallos-root .wallos-sync-line {
+  display: inline-flex;
+  margin: 9px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  color: var(--text-faint);
+  font-size: .7rem;
+}
+.wallos-root .wallos-sync-dot {
+  background: var(--text-accent);
+  width: 6px;
+  height: 6px;
+  flex-basis: 6px;
+}
+.wallos-root .wallos-summary-heading {
+  margin: 26px 0 12px;
+  align-items: center;
+  gap: 8px 15px;
+}
+.wallos-root .wallos-section-kicker {
+  font-size: .82rem;
+  font-weight: 670;
+  letter-spacing: .035em;
+  color: var(--text-normal);
+}
+.wallos-root .wallos-summary-period { font-size: .74rem; }
+.wallos-root .wallos-summary-edit {
+  border: 1px solid var(--wallos-line);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 550;
+}
+.wallos-root .wallos-summary-edit:hover { background: var(--wallos-hover); color: var(--text-normal); }
+
+/* Continuous instrument: leading metric acts as a hero, remaining cards as ledger columns. */
+.wallos-root .wallos-metrics-wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 0;
+  border-top: 1px solid var(--text-normal);
+  border-bottom: 1px solid var(--wallos-line);
+}
+.wallos-root .wallos-metrics-wide .wallos-metric {
+  background: transparent;
+  border: 0;
+  border-inline-start: 1px solid var(--wallos-line);
+  border-radius: 0;
+  min-width: 0;
+  min-height: 138px;
+  padding: 20px 18px 18px;
+}
+.wallos-root .wallos-metrics-wide .wallos-metric:first-child {
+  background: transparent;
+  border: 0;
+  padding: 20px 24px 20px 0;
+}
+.wallos-root .wallos-metrics-wide .wallos-metric-heading { align-items: center; gap: 8px; margin-bottom: 18px; }
+.wallos-root .wallos-metrics-wide .wallos-metric-label { color: var(--text-muted); font-size: .75rem; font-weight: 600; }
+.wallos-root .wallos-metrics-wide .wallos-metric-icon { color: var(--text-faint); }
+.wallos-root .wallos-metrics-wide .wallos-metric-value {
+  color: var(--text-normal);
+  font-size: clamp(1.14rem, 2.05cqi, 1.65rem);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -.033em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.wallos-root .wallos-metrics-wide .wallos-metric:first-child .wallos-metric-value {
+  font-size: clamp(2.2rem, 5.1cqi, 3.95rem);
+  line-height: 1.08;
+  font-weight: 720;
+  letter-spacing: -.065em;
+}
+.wallos-root .wallos-metrics-wide .wallos-metric-foot {
+  margin-top: 11px;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+.wallos-root .wallos-summary-empty { padding: 18px 0; }
+
+/* Tabbed navigation reads as part of the native view, not as a second app shell. */
+.wallos-root .wallos-page-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 12px 0 26px;
+  padding: 0;
+  border-bottom: 1px solid var(--wallos-line);
+  overflow: visible;
+}
+.wallos-root .wallos-page-tabs .wallos-button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 12px 7px;
+  min-height: 47px;
+  width: 100%;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: .83rem;
+  font-weight: 580;
+  text-align: center;
+  white-space: normal;
+}
+.wallos-root .wallos-page-tabs .wallos-button.is-active {
+  border: 0;
+  border-bottom: 2px solid var(--interactive-accent);
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+  font-weight: 720;
+}
+.wallos-root .wallos-page-tabs .wallos-button:hover:not(.is-active) { color: var(--text-normal); background: var(--wallos-hover); }
+.wallos-root .wallos-panel-heading { margin-bottom: 17px; }
+.wallos-root .wallos-panel-heading h3, .wallos-root .wallos-section-heading {
+  font-size: 1.12rem;
+  font-weight: 680;
+  line-height: 1.35;
+  letter-spacing: -.023em;
+  color: var(--text-normal);
+}
+.wallos-root .wallos-panel-heading > span { color: var(--text-muted); font-size: .75rem; }
+
+/* Compact search, explicit filters, flat subscription rows; all actions remain visible. */
+.wallos-root .wallos-controls { gap: 10px; align-items: stretch; }
+.wallos-root .wallos-search { min-height: 44px; border-radius: var(--radius-s); background: var(--background-secondary); }
+.wallos-root .wallos-controls .wallos-add { min-height: 44px; border-radius: var(--radius-s); }
+.wallos-root .wallos-filters { padding: 14px 0 10px; margin: 0; }
+.wallos-root .wallos-filter {
+  color: var(--text-muted);
+  border: 1px solid var(--wallos-line);
+  background: transparent;
+  border-radius: var(--radius-s);
+  min-height: 38px;
+}
+.wallos-root .wallos-filter.is-active {
+  color: var(--text-accent);
+  background: var(--background-secondary);
+  border-color: var(--interactive-accent);
+  font-weight: 650;
+}
+.wallos-root .wallos-advanced-filters {
+  padding: 12px;
+  margin: 0 0 18px;
+  border: 1px solid var(--wallos-line);
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+}
+.wallos-root .wallos-filter-select { border-radius: var(--radius-s); background: var(--background-primary); }
+.wallos-root .wallos-list { border-top: 1px solid var(--wallos-line); min-width: 0; }
+.wallos-root .wallos-list-title {
+  margin: 0;
+  padding: 13px 3px;
+  border-bottom: 1px solid var(--wallos-line);
+  color: var(--text-muted);
+  font-size: .74rem;
+  font-weight: 580;
+}
+.wallos-root .wallos-subscription {
+  display: flex;
+  margin: 0;
+  padding: 16px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--wallos-line);
+  border-radius: 0;
+  background: transparent;
+  gap: 14px;
+  transition: background-color 120ms ease;
+}
+.wallos-root .wallos-subscription:hover { border-color: var(--wallos-line); background: var(--wallos-hover); }
+.wallos-root .wallos-subscription.is-inactive { opacity: .75; }
+.wallos-root .wallos-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: var(--radius-s);
+  background: var(--wallos-soft);
+  color: var(--text-accent);
+}
+.wallos-root .wallos-subscription-detail h3 { font-size: .94rem; font-weight: 650; line-height: 1.42; }
+.wallos-root .wallos-category-pill { border-radius: var(--radius-s); }
+.wallos-root .wallos-subscription-price { font-size: .95rem; font-weight: 700; }
+.wallos-root .wallos-subscription-date { line-height: 1.5; }
+.wallos-root .wallos-subscription-actions { gap: 1px; }
+.wallos-root .wallos-subscription-actions .wallos-icon-button { width: 38px; min-width: 38px; min-height: 42px; }
+
+/* Calendar stays a real seven-column sheet, with native selection and contrast. */
+.wallos-root .wallos-calendar-bar { margin-top: 0; justify-content: flex-start; }
+.wallos-root .wallos-calendar-bar h3 { margin: 0 4px; font-size: 1.1rem; min-width: 140px; }
+.wallos-root .wallos-calendar-summary { margin: 10px 0 16px; line-height: 1.5; }
+.wallos-root .wallos-calendar-month { border-radius: var(--radius-s); }
+.wallos-root .wallos-calendar-month .wallos-calendar-weekday { color: var(--text-muted); }
+.wallos-root .wallos-calendar-cell { background: var(--background-primary); }
+.wallos-root .wallos-calendar-cell.is-outside { background: var(--background-secondary); }
+.wallos-root .wallos-calendar-cell.is-selected {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+.wallos-root .wallos-calendar-day-event {
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  background: var(--background-secondary);
+}
+.wallos-root .wallos-calendar-day-count { color: var(--text-accent); font-weight: 600; }
+.wallos-root .wallos-calendar-event { gap: 10px; padding: 12px 4px; }
+.wallos-root .wallos-calendar-event-price { color: var(--text-normal); font-weight: 650; }
+
+/* Trends, resources and settings adopt the same neutral ledger language. */
+.wallos-root .wallos-chart { background: transparent; border-radius: var(--radius-s); padding: 18px 10px 10px; }
+.wallos-root .wallos-chart-track { border-bottom: 1px solid var(--wallos-line); }
+.wallos-root .wallos-chart-bar { background: var(--interactive-accent); border-radius: var(--radius-s) var(--radius-s) 0 0; }
+.wallos-root .wallos-stats-categories, .wallos-root .wallos-resource-list { border-radius: var(--radius-s); }
+.wallos-root .wallos-stat-category { min-width: 0; gap: 10px; }
+.wallos-root .wallos-notification-row {
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+  min-width: 0;
+}
+.wallos-root .wallos-manager-summary .wallos-metric { border-radius: var(--radius-s); }
+.wallos-root .wallos-footnote { line-height: 1.65; }
+.wallos-dialog .wallos-card-setting {
+  background: var(--background-primary-alt);
+  border-radius: var(--radius-s);
+}
+.wallos-dialog .wallos-card-setting-head { padding-bottom: 8px; border-bottom: 1px solid var(--background-modifier-border); }
+.wallos-dialog .wallos-icon-result, .wallos-dialog .wallos-logo-preview { border-radius: var(--radius-s); }
+.wallos-dialog .wallos-input { border-radius: var(--radius-s); color: var(--text-normal); }
+
+/* Obsidian pane widths, not the browser viewport, control layout. */
+@container wallos-pane (max-width: 790px) {
+  .wallos-root .wallos-metrics-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wallos-root .wallos-metrics-wide .wallos-metric { min-height: 110px; padding: 16px 14px; }
+  .wallos-root .wallos-metrics-wide .wallos-metric:first-child {
+    grid-column: 1 / -1;
+    min-height: 136px;
+    border-bottom: 1px solid var(--wallos-line);
+    padding: 19px 0;
+  }
+  .wallos-root .wallos-metrics-wide .wallos-metric:nth-child(2n) { border-inline-start: 0; }
+  .wallos-root .wallos-metrics-wide .wallos-metric:nth-child(n+4) { border-top: 1px solid var(--wallos-line); }
+  .wallos-root .wallos-page-tabs { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .wallos-root .wallos-subscription {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+  .wallos-root .wallos-subscription-identity { grid-column: 1; }
+  .wallos-root .wallos-subscription-payment { grid-column: 2; max-width: 170px; min-width: 0; }
+  .wallos-root .wallos-subscription-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    border-top: 1px solid var(--wallos-line);
+    padding-top: 4px;
+  }
+}
+@container wallos-pane (max-width: 480px) {
+  .wallos-root .wallos-surface { padding: 16px 12px calc(42px + env(safe-area-inset-bottom, 0px)); }
+  .wallos-root .wallos-header { padding-bottom: 16px; gap: 8px; }
+  .wallos-root .wallos-brand { gap: 10px; }
+  .wallos-root .wallos-brand-mark { margin-top: 2px; width: 36px; height: 36px; flex-basis: 36px; }
+  .wallos-root .wallos-brand-mark svg { width: 18px; height: 18px; }
+  .wallos-root .wallos-header h2 { font-size: 1.55rem; }
+  .wallos-root .wallos-header-name p { font-size: .72rem; }
+  .wallos-root .wallos-header-actions .wallos-icon-button { min-width: 40px; width: 40px; min-height: 44px; }
+  .wallos-root .wallos-metrics-wide .wallos-metric:first-child .wallos-metric-value { font-size: clamp(2rem, 9cqi, 3.05rem); }
+  .wallos-root .wallos-metrics-wide .wallos-metric-value { font-size: 1.18rem; }
+  .wallos-root .wallos-page-tabs { margin-bottom: 21px; }
+  .wallos-root .wallos-page-tabs .wallos-button { font-size: .75rem; gap: 3px; padding: 9px 2px; min-height: 47px; }
+  .wallos-root .wallos-page-tabs .wallos-button-icon svg { width: 15px; height: 15px; }
+  .wallos-root .wallos-subscription { grid-template-columns: minmax(0,1fr) auto; }
+  .wallos-root .wallos-subscription-identity { grid-column: 1 / -1; }
+  .wallos-root .wallos-subscription-payment { grid-column: 1; max-width: none; text-align: left; padding-left: 50px; }
+  .wallos-root .wallos-subscription-actions { grid-column: 2; grid-row: 2; align-self: end; border: 0; padding: 0; }
+  .wallos-root .wallos-subscription-actions .wallos-icon-button { width: 40px; min-width: 40px; min-height: 44px; }
+  .wallos-root .wallos-advanced-filters { padding: 10px; gap: 8px; }
+  .wallos-root .wallos-calendar-bar { justify-content: center; }
+}
+@container wallos-pane (max-width: 300px) {
+  .wallos-root .wallos-header-actions { gap: 0; }
+  .wallos-root .wallos-brand-mark { display: none; }
+  .wallos-root .wallos-header h2 { font-size: 1.35rem; }
+  .wallos-root .wallos-eyebrow { font-size: .56rem; }
+  .wallos-root .wallos-metrics-wide { grid-template-columns: minmax(0, 1fr); }
+  .wallos-root .wallos-metrics-wide .wallos-metric {
+    grid-column: 1 / -1;
+    border-inline-start: 0;
+    border-top: 1px solid var(--wallos-line);
+  }
+  .wallos-root .wallos-metrics-wide .wallos-metric:first-child { border-top: 0; }
+  .wallos-root .wallos-page-tabs .wallos-button-icon { display: none; }
+  .wallos-root .wallos-page-tabs .wallos-button { font-size: .67rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wallos-root .wallos-subscription { transition: none; }
+}
